@@ -16,9 +16,10 @@ st.set_page_config(
 # ── Load models ───────────────────────────────────────────────
 @st.cache_resource
 def load_models():
-    xgb   = joblib.load("models/xgb_model.pkl")
-    lr    = joblib.load("models/lr_model.pkl")
-    feats = joblib.load("models/feature_names.pkl")
+    base = os.path.dirname(os.path.abspath(__file__))
+    xgb   = joblib.load(os.path.join(base, "models", "xgb_model.pkl"))
+    lr    = joblib.load(os.path.join(base, "models", "lr_model.pkl"))
+    feats = joblib.load(os.path.join(base, "models", "feature_names.pkl"))
     return xgb, lr, feats
 
 try:
