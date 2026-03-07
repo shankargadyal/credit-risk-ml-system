@@ -12,7 +12,7 @@ Intelligent Credit Risk &amp; Loan Pre-Eligibility System using Machine Learning
 ---
 
 ## 🔗 Live Demo
-**👉 [Try the App Here] [http://localhost:8501/](https://credit-risk-ml-system-sg.streamlit.app/)
+**👉 [Try the App Here] https://credit-risk-ml-system-sg.streamlit.app/
 
 
 ![App Screenshot] <img width="1853" height="900" alt="Screenshot 2026-03-08 004214" src="https://github.com/user-attachments/assets/5897d9f7-90de-4fee-bd5f-3cac573675eb" />
