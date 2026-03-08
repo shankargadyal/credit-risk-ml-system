@@ -1342,7 +1342,7 @@ style="color:#3b82f6;text-decoration:none">🔗 Kaggle Dataset</a></p>
     st.markdown("""<div class="card">
 <p class="section-label">Developer</p>
 <p><b style="color:#e2e8f0">Shankar Gadyal</b> — MSc Data Science</p>
-<p><a href="https://linkedin.com/in/yourprofile" target="_blank" style="color:#3b82f6">LinkedIn</a>
+<p><a href="https://www.linkedin.com/in/shankargadyal" target="_blank" style="color:#3b82f6">LinkedIn</a>
 &nbsp;|&nbsp;
 <a href="https://github.com/shankargadyal" target="_blank" style="color:#3b82f6">GitHub</a>
 &nbsp;|&nbsp;
