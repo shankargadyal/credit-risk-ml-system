@@ -405,7 +405,7 @@ with st.sidebar:
 # PAGE: HOME
 # ─────────────────────────────────────────────────────────────────────────────
 if page == "🏠 Home":
-    st.markdown('<p class="page-title">Credit Risk & Loan Eligibility System</p>', unsafe_allow_html=True)
+        st.markdown('<h1 class="hero-title">Intelligent Credit Risk<br>& Decision System</h1>', unsafe_allow_html=True)
     st.markdown('<p class="page-sub">Production ML pipeline · LendingClub 2007–2018 · MSc Data Science</p>', unsafe_allow_html=True)
 
     # KPI row
@@ -1258,6 +1258,22 @@ Mode: <b style="color:{'#10b981' if st.session_state.api_key else '#f59e0b'}">
 
             st.session_state.chat_history.append({"role": "assistant", "content": response})
             st.rerun()
+            # Create a summary of the CURRENT application to feed the AI
+current_app_context = ""
+if 'last_assessment' in st.session_state:
+    data = st.session_state.last_assessment
+    current_app_context = f"""
+    USER'S CURRENT APPLICATION DATA:
+    - Loan Amount: ${data['loan_amnt']}
+    - Income: ${data['annual_inc']}
+    - DTI: {data['dti']}%
+    - Credit Grade: {data['grade']}
+    - ML Default Probability: {data['prob']:.2%}
+    - Result: {data['decision']}
+    """
+
+# Add this to your system_prompt inside the ai_response function
+full_system_prompt = f"{base_system_prompt}\n\n{current_app_context}"
 
 
 elif page == "ℹ️ About":
@@ -1296,3 +1312,10 @@ elif page == "ℹ️ About":
 </ul>
 </div>
 """, unsafe_allow_html=True)
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 👨‍💻 Developer")
+st.sidebar.info("""
+**Shankar Gadyal**
+MSc Data Science Student
+[LinkedIn](https://www.linkedin.com/in/shankargadyal/) | [GitHub](https://github.com/shankargadyal)
+""")
