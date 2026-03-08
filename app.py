@@ -1273,10 +1273,11 @@ if 'last_assessment' in st.session_state:
     """
 
 # Add this to your system_prompt inside the ai_response function
-full_system_prompt = f"{base_system_prompt}\n\n{current_app_context}"
+
 
 
 # ... (previous page logic above) ...
+
 
 elif page == "ℹ️ About":
     st.markdown('<p class="page-title">About the Project</p>', unsafe_allow_html=True)
