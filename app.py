@@ -405,7 +405,7 @@ with st.sidebar:
 # PAGE: HOME
 # ─────────────────────────────────────────────────────────────────────────────
 if page == "🏠 Home":
-        st.markdown('<h1 class="hero-title">Intelligent Credit Risk<br>& Decision System</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="hero-title">Intelligent Credit Risk<br>& Decision System</h1>', unsafe_allow_html=True)
     st.markdown('<p class="page-sub">Production ML pipeline · LendingClub 2007–2018 · MSc Data Science</p>', unsafe_allow_html=True)
 
     # KPI row
