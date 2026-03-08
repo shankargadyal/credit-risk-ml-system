@@ -1312,6 +1312,7 @@ elif page == "ℹ️ About":
 </ul>
 </div>
 """, unsafe_allow_html=True)
+
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 👨‍💻 Developer")
 st.sidebar.info("""
@@ -1319,3 +1320,11 @@ st.sidebar.info("""
 MSc Data Science Student
 [LinkedIn](https://www.linkedin.com/in/shankargadyal/) | [GitHub](https://github.com/shankargadyal)
 """, unsafe_allow_html=True)
+
+
+
+
+
+
+
+
