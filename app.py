@@ -1276,14 +1276,16 @@ if 'last_assessment' in st.session_state:
 full_system_prompt = f"{base_system_prompt}\n\n{current_app_context}"
 
 
+# ... (previous page logic above) ...
+
 elif page == "ℹ️ About":
     st.markdown('<p class="page-title">About the Project</p>', unsafe_allow_html=True)
 
-    # Main Content Area
+    # 1. Main Content - Markdown/HTML block
     st.markdown("""
     <div class="card card-accent">
         <h3>Project Overview</h3>
-        <p>CreditIQ is a multi-model machine learning system designed to predict loan default risk and support pre-eligibility decisions in fintech applications. It integrates Logistic Regression, Random Forest, and XGBoost with model benchmarking, explainability, and interactive risk visualization through a Streamlit-based web application.</p>
+        <p>CreditIQ is a multi-model machine learning system designed to predict loan default risk and support pre-eligibility decisions in fintech applications. It integrates Logistic Regression, Random Forest, and XGBoost with model benchmarking, explainability, and interactive risk visualization.</p>
     </div>
 
     <div class="card">
@@ -1309,17 +1311,15 @@ elif page == "ℹ️ About":
             <li><b>Feature leakage:</b> <code>int_rate</code> and <code>grade</code> should be excluded in real pre-decision models.</li>
             <li><b>SHAP values:</b> Integration would provide more rigorous mathematical explainability.</li>
             <li><b>MLOps:</b> Model retraining pipeline and data drift monitoring not yet implemented.</li>
-            <li><b>Class imbalance:</b> Could be further addressed with SMOTE or cost-sensitive learning.</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
 
-  
+    # 2. Sidebar Content - These MUST be outside the triple quotes above
     st.sidebar.markdown("---")
-    st.sidebar.markdown("#### 👨‍💻 Developer")
+    st.sidebar.markdown("### 👨‍💻 Developer")
     st.sidebar.info("""
-    **Shankar Gadyal** 
-    MSc Data Science Student  
+    **Shankar Gadyal** MSc Data Science Student  
     [LinkedIn](https://www.linkedin.com/in/shankargadyal) | [GitHub](https://github.com/shankargadyal)
     """)
 
