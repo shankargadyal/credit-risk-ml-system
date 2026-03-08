@@ -1311,11 +1311,11 @@ elif page == "ℹ️ About":
 <li>Class imbalance could be further addressed with SMOTE or cost-sensitive learning</li>
 </ul>
 </div>
-""", unsafe_allow_html=True)
+
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 👨‍💻 Developer")
 st.sidebar.info("""
 **Shankar Gadyal**
 MSc Data Science Student
 [LinkedIn](https://www.linkedin.com/in/shankargadyal/) | [GitHub](https://github.com/shankargadyal)
-""")
+""", unsafe_allow_html=True)
