@@ -1277,41 +1277,51 @@ full_system_prompt = f"{base_system_prompt}\n\n{current_app_context}"
 
 
 elif page == "ℹ️ About":
-    st.markdown('<p class="page-title">About</p>', unsafe_allow_html=True)
+    st.markdown('<p class="page-title">About the Project</p>', unsafe_allow_html=True)
 
+    # Main Content Area
     st.markdown("""
-<div class="card card-accent">
-<h3>Project Overview</h3>
-<p>CreditIQ is a multi-model machine learning system designed to predict loan default risk and support pre-eligibility decisions in fintech applications. It integrates Logistic Regression, Random Forest, and XGBoost with model benchmarking, explainability, and interactive risk visualization through a Streamlit-based web application.<p>
-<div>
+    <div class="card card-accent">
+        <h3>Project Overview</h3>
+        <p>CreditIQ is a multi-model machine learning system designed to predict loan default risk and support pre-eligibility decisions in fintech applications. It integrates Logistic Regression, Random Forest, and XGBoost with model benchmarking, explainability, and interactive risk visualization through a Streamlit-based web application.</p>
+    </div>
 
-<div class="card">
-<h3>Dataset</h3>
-<p><b>LendingClub Accepted Loans (2007–2018)</b> — 265,776 loans filtered to fully resolved outcomes (Fully Paid / Charged Off). Default rate: 20.1%.</p>
-<p><a href="https://www.kaggle.com/datasets/wordsforthewise/lending-club" target="_blank" style="color:#3b82f6">Kaggle Dataset Link</a></p>
-</div>
+    <div class="card">
+        <h3>Dataset</h3>
+        <p><b>LendingClub Accepted Loans (2007–2018)</b> — 265,776 loans filtered to fully resolved outcomes (Fully Paid / Charged Off). Default rate: 20.1%.</p>
+        <p><a href="https://www.kaggle.com/datasets/wordsforthewise/lending-club" target="_blank" style="color:#3b82f6; text-decoration:none;">🔗 Kaggle Dataset Link</a></p>
+    </div>
 
-<div class="card">
-<h3>Decision Pipeline</h3>
-<ol>
-<li><b>Pre-Eligibility Rules</b> — Hard rejections for extreme DTI, low income, oversized loan</li>
-<li><b>ML Scoring</b> — XGBoost predicts probability of default</li>
-<li><b>Risk Banding</b> — Low (&lt;30%) / Medium (30–60%) / High (&gt;60%)</li>
-<li><b>Final Decision</b> — Approved / Conditional / Rejected</li>
-<li><b>Explanation</b> — Plain-English risk factors for every decision</li>
-</ol>
-</div>
+    <div class="card">
+        <h3>Decision Pipeline</h3>
+        <ol>
+            <li><b>Pre-Eligibility Rules</b> — Hard rejections for extreme DTI, low income, oversized loan.</li>
+            <li><b>ML Scoring</b> — XGBoost predicts probability of default.</li>
+            <li><b>Risk Banding</b> — Low (&lt;30%) / Medium (30–60%) / High (&gt;60%).</li>
+            <li><b>Final Decision</b> — Approved / Conditional / Rejected.</li>
+            <li><b>Explanation</b> — Plain-English risk factors for every decision.</li>
+        </ol>
+    </div>
 
-<div class="card">
-<h3>Limitations & Future Work</h3>
-<ul>
-<li>Feature leakage: <code>int_rate</code> and <code>grade</code> should be excluded in real pre-decision models</li>
-<li>SHAP values would provide more rigorous explainability</li>
-<li>Model retraining pipeline and data drift monitoring not yet implemented</li>
-<li>Class imbalance could be further addressed with SMOTE or cost-sensitive learning</li>
-</ul>
-</div>
-""", unsafe_allow_html=True)
+    <div class="card">
+        <h3>Limitations & Future Work</h3>
+        <ul>
+            <li><b>Feature leakage:</b> <code>int_rate</code> and <code>grade</code> should be excluded in real pre-decision models.</li>
+            <li><b>SHAP values:</b> Integration would provide more rigorous mathematical explainability.</li>
+            <li><b>MLOps:</b> Model retraining pipeline and data drift monitoring not yet implemented.</li>
+            <li><b>Class imbalance:</b> Could be further addressed with SMOTE or cost-sensitive learning.</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
+
+  
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("#### 👨‍💻 Developer")
+    st.sidebar.info("""
+    **Shankar Gadyal** 
+    MSc Data Science Student  
+    [LinkedIn](https://www.linkedin.com/in/shankargadyal) | [GitHub](https://github.com/shankargadyal)
+    """)
 
 
 
