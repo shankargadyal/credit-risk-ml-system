@@ -1315,15 +1315,7 @@ elif page == "ℹ️ About":
     </div>
     """, unsafe_allow_html=True)
 
-    # 2. Sidebar Content - These MUST be outside the triple quotes above
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### 👨‍💻 Developer")
-    st.sidebar.info("""
-    **Shankar Gadyal** MSc Data Science Student  
-    [LinkedIn](https://www.linkedin.com/in/shankargadyal) | [GitHub](https://github.com/shankargadyal)
-    """)
-
-
+   
 
 
 
