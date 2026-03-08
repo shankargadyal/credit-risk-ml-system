@@ -1279,20 +1279,22 @@ full_system_prompt = f"{base_system_prompt}\n\n{current_app_context}"
 # ... (previous page logic above) ...
 
 elif page == "ℹ️ About":
-    st.markdown('<p class="page-title">About</p>', unsafe_allow_html=True)
+    st.markdown('<p class="page-title">About the Project</p>', unsafe_allow_html=True)
 
     st.markdown("""
 <div class="card card-accent">
 <h3>Project Overview</h3>
-<p>CreditIQ is a multi-model machine learning system designed to predict loan default risk and support pre-eligibility decisions in fintech applications. It integrates Logistic Regression, Random Forest, and XGBoost with model benchmarking, explainability, and interactive risk visualization through a Streamlit-based web application.<p>
-<div>
-
+<p>CreditIQ is a multi-model machine learning system designed to predict loan default risk
+and support pre-eligibility decisions in fintech applications. It integrates Logistic Regression,
+Random Forest, and XGBoost with model benchmarking, explainability, and interactive risk visualization.</p>
+</div>
 <div class="card">
 <h3>Dataset</h3>
-<p><b>LendingClub Accepted Loans (2007–2018)</b> — 265,776 loans filtered to fully resolved outcomes (Fully Paid / Charged Off). Default rate: 20.1%.</p>
-<p><a href="https://www.kaggle.com/datasets/wordsforthewise/lending-club" target="_blank" style="color:#3b82f6">Kaggle Dataset Link</a></p>
+<p><b>LendingClub Accepted Loans (2007–2018)</b> — 265,776 loans filtered to fully resolved outcomes
+(Fully Paid / Charged Off). Default rate: 20.1%.</p>
+<p><a href="https://www.kaggle.com/datasets/wordsforthewise/lending-club" target="_blank"
+style="color:#3b82f6;text-decoration:none">🔗 Kaggle Dataset</a></p>
 </div>
-
 <div class="card">
 <h3>Decision Pipeline</h3>
 <ol>
@@ -1303,19 +1305,49 @@ elif page == "ℹ️ About":
 <li><b>Explanation</b> — Plain-English risk factors for every decision</li>
 </ol>
 </div>
-
 <div class="card">
-<h3>Limitations & Future Work</h3>
+<h3>Limitations and Future Work</h3>
 <ul>
-<li>Feature leakage: <code>int_rate</code> and <code>grade</code> should be excluded in real pre-decision models</li>
-<li>SHAP values would provide more rigorous explainability</li>
-<li>Model retraining pipeline and data drift monitoring not yet implemented</li>
-<li>Class imbalance could be further addressed with SMOTE or cost-sensitive learning</li>
+<li><b>Feature leakage:</b> int_rate and grade should be excluded in real pre-decision models</li>
+<li><b>SHAP values:</b> Integration would provide more rigorous explainability</li>
+<li><b>MLOps:</b> Model retraining pipeline and data drift monitoring not yet implemented</li>
 </ul>
 </div>
 """, unsafe_allow_html=True)
 
+    st.divider()
 
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown("""<div class="metric-box">
+<div class="metric-label">Dataset</div>
+<div class="metric-value metric-blue">265K</div>
+<div class="metric-sub">LendingClub loans</div>
+</div>""", unsafe_allow_html=True)
+    with c2:
+        st.markdown("""<div class="metric-box">
+<div class="metric-label">Best AUC</div>
+<div class="metric-value metric-green">0.743</div>
+<div class="metric-sub">XGBoost</div>
+</div>""", unsafe_allow_html=True)
+    with c3:
+        st.markdown("""<div class="metric-box">
+<div class="metric-label">Models</div>
+<div class="metric-value metric-purple">3</div>
+<div class="metric-sub">LR · RF · XGB</div>
+</div>""", unsafe_allow_html=True)
+
+    st.divider()
+    st.markdown("""<div class="card">
+<p class="section-label">Developer</p>
+<p><b style="color:#e2e8f0">Shankar Gadyal</b> — MSc Data Science</p>
+<p><a href="https://linkedin.com/in/yourprofile" target="_blank" style="color:#3b82f6">LinkedIn</a>
+&nbsp;|&nbsp;
+<a href="https://github.com/shankargadyal" target="_blank" style="color:#3b82f6">GitHub</a>
+&nbsp;|&nbsp;
+<a href="https://credit-risk-ml-system-sg.streamlit.app" target="_blank" style="color:#3b82f6">Live App</a>
+</p>
+</div>""", unsafe_allow_html=True)
 
 
 
