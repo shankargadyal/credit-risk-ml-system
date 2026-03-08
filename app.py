@@ -1278,6 +1278,7 @@ full_system_prompt = f"{base_system_prompt}\n\n{current_app_context}"
 
 elif page == "ℹ️ About":
     st.markdown('<p class="page-title">About</p>', unsafe_allow_html=True)
+
     st.markdown("""
 <div class="card card-accent">
 <h3>Project Overview</h3>
