@@ -1311,7 +1311,7 @@ elif page == "ℹ️ About":
 <li>Class imbalance could be further addressed with SMOTE or cost-sensitive learning</li>
 </ul>
 </div>
-
+""", unsafe_allow_html=True)
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 👨‍💻 Developer")
 st.sidebar.info("""
