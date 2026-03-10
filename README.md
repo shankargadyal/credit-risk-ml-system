@@ -403,7 +403,7 @@ XGBoost's `early_stopping_rounds` requires an `eval_set` — which `cross_val_sc
 ## 👤 Author
 
 SHANKAR
-MSc Data Science | [LinkedIn]((https://www.linkedin.com/in/shankargadyal/)) | [GitHub](https://github.com/yourusername)
+MSc Data Science | [LinkedIn](https://www.linkedin.com/in/shankargadyal) | [GitHub](https://github.com/yourusername)
 
 ---
 
