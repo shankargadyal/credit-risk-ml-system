@@ -1090,9 +1090,9 @@ else:
     st.info("Rule-based mode", icon="📚")
 
         # Last assessment context badge
-        if "last_assessment" in st.session_state:
-            d = st.session_state["last_assessment"]
-            st.markdown(f"""<div class="card card-accent" style="margin-top:0.5rem">
+ if "last_assessment" in st.session_state:
+     d = st.session_state["last_assessment"]
+     st.markdown(f"""<div class="card card-accent" style="margin-top:0.5rem">
 <p class="section-label">📋 Last Assessment</p>
 <p style="color:#94a3b8;font-size:0.8rem">
 Loan: <b style="color:#e2e8f0">${d['loan_amnt']:,}</b><br>
