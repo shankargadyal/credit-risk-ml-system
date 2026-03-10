@@ -1010,7 +1010,7 @@ elif page == "💬 AI Assistant":
         ),
     }
     
-     def rule_based_response(user_input):
+    def rule_based_response(user_input):
         text = user_input.lower().strip()
         if text in KB:
             return KB[text]
