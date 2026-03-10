@@ -772,7 +772,7 @@ elif page == "🤖 Model Performance":
 # ─────────────────────────────────────────────────────────────────────────────
 elif page == "💬 AI Assistant":
     st.markdown('<p class="page-title">AI Loan Assistant</p>', unsafe_allow_html=True)
-    st.markdown('<p class="page-sub">Ask me anything about your loan application, credit risk, or how the system works</p>', unsafe_allow_html=True)
+    st.markdown('<p class="page-sub">Powered by Gemini 1.5 Flash · Ask anything about credit risk or your application</p>', unsafe_allow_html=True)
 
     # ── Anthropic API endpoint ──
    GEMINI_API_KEY = "AIzaSyDdTLPDJKrQWW9S20vXBYsF44kGMFYKoWk"
