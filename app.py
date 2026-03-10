@@ -1011,7 +1011,7 @@ elif page == "💬 AI Assistant":
     }
     
 
-    def rule_based_response(user_input):
+     def rule_based_response(user_input):
         text = user_input.lower().strip()
         if text in KB:
             return KB[text]
@@ -1075,19 +1075,17 @@ Model: <b style="color:#e2e8f0">gemini-1.5-flash-8b</b><br>
 </p>""", unsafe_allow_html=True)
 
         api_key_input = st.text_input(
-    "Gemini API Key", type="password",
-    value=st.session_state.api_key,
-    placeholder="AIzaSy...",
-    label_visibility="collapsed"
-)
-if api_key_input:
-    st.session_state.api_key = api_key_input
-
-# Always show active if key exists in session
-if st.session_state.api_key:
-    st.success("AI mode active ✅", icon="🤖")
-else:
-    st.info("Rule-based mode", icon="📚")
+            "Gemini API Key", type="password",
+            value=st.session_state.api_key,
+            placeholder="AIzaSy...",
+            label_visibility="collapsed"
+        )
+        if api_key_input:
+            st.session_state.api_key = api_key_input
+            st.success("AI mode active ✅", icon="🤖")
+        else:
+            st.info("Rule-based mode", icon="📚")
+        st.markdown("</div>", unsafe_allow_html=True)
 
         # Last assessment context badge
         if "last_assessment" in st.session_state:
@@ -1160,7 +1158,6 @@ Mode: <b style="color:{'#10b981' if st.session_state.api_key else '#f59e0b'}">
 
             st.session_state.chat_history.append({"role": "assistant", "content": response})
             st.rerun()
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PAGE: ABOUT
