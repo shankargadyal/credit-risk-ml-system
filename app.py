@@ -7,14 +7,13 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import seaborn as sns
 import joblib
-import os
+import requests
+import time
 from pathlib import Path
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PAGE CONFIG  (must be first Streamlit call)
+# PAGE CONFIG
 # ─────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="CreditIQ — Loan Risk System",
@@ -50,14 +49,12 @@ html, body, .stApp {
     font-family: var(--sans) !important;
 }
 
-/* Sidebar */
 [data-testid="stSidebar"] {
     background: var(--surface) !important;
     border-right: 1px solid var(--border) !important;
 }
 [data-testid="stSidebar"] * { color: var(--text) !important; }
 
-/* Cards */
 .card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -70,7 +67,6 @@ html, body, .stApp {
 .card-red    { border-left: 3px solid var(--red); }
 .card-amber  { border-left: 3px solid var(--amber); }
 
-/* Metric boxes */
 .metric-box {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -78,37 +74,26 @@ html, body, .stApp {
     padding: 1.2rem;
     text-align: center;
 }
-.metric-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; font-family: var(--mono); }
-.metric-value { font-size: 1.9rem; font-weight: 700; line-height: 1; }
-.metric-sub   { font-size: 0.68rem; color: var(--muted); margin-top: 4px; font-family: var(--mono); }
+.metric-label  { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; font-family: var(--mono); }
+.metric-value  { font-size: 1.9rem; font-weight: 700; line-height: 1; }
+.metric-sub    { font-size: 0.68rem; color: var(--muted); margin-top: 4px; font-family: var(--mono); }
 .metric-blue   { color: var(--accent); }
 .metric-green  { color: var(--green); }
 .metric-amber  { color: var(--amber); }
 .metric-red    { color: var(--red); }
 .metric-purple { color: #a78bfa; }
 
-/* Badges */
-.badge {
-    display: inline-block;
-    padding: 0.35rem 1rem;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 0.88rem;
-    font-family: var(--sans);
-}
+.badge { display: inline-block; padding: 0.35rem 1rem; border-radius: 6px; font-weight: 600; font-size: 0.88rem; }
 .badge-approved    { background: rgba(34,197,94,0.1);  color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
 .badge-conditional { background: rgba(245,158,11,0.1); color: var(--amber); border: 1px solid rgba(245,158,11,0.25); }
 .badge-rejected    { background: rgba(239,68,68,0.1);  color: var(--red);   border: 1px solid rgba(239,68,68,0.25); }
 
-/* Probability bar */
 .prob-bar-container { background: var(--border); border-radius: 4px; height: 6px; width: 100%; margin: 10px 0; }
 .prob-bar           { height: 6px; border-radius: 4px; }
 
-/* Page title */
 .page-title { font-size: 1.6rem; font-weight: 700; color: var(--text); letter-spacing: -0.5px; margin-bottom: 2px; }
 .page-sub   { color: var(--muted); font-size: 0.82rem; margin-bottom: 1.5rem; font-family: var(--mono); }
 
-/* Section label */
 .section-label {
     font-family: var(--mono);
     font-size: 0.65rem;
@@ -118,7 +103,6 @@ html, body, .stApp {
     margin-bottom: 0.75rem;
 }
 
-/* Inputs */
 .stTextInput>div>div>input,
 .stNumberInput>div>div>input {
     background: var(--surface) !important;
@@ -133,7 +117,6 @@ html, body, .stApp {
     border-radius: 8px !important;
 }
 
-/* Buttons */
 .stButton > button {
     background: var(--accent) !important;
     color: white !important;
@@ -156,7 +139,6 @@ html, body, .stApp {
     padding: 0.65rem !important;
 }
 
-/* Tags */
 .tag {
     display: inline-block;
     padding: 0.2rem 0.65rem;
@@ -171,7 +153,6 @@ html, body, .stApp {
     border: 1px solid rgba(79,142,247,0.2);
 }
 
-/* Step */
 .step { display: flex; align-items: flex-start; gap: 0.9rem; margin-bottom: 0.9rem; }
 .step-num {
     flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
@@ -182,7 +163,6 @@ html, body, .stApp {
 .step-title { font-weight: 600; color: var(--text); font-size: 0.88rem; }
 .step-desc  { color: var(--muted); font-size: 0.8rem; margin-top: 1px; }
 
-/* Misc */
 hr { border-color: var(--border) !important; }
 .stAlert { border-radius: 8px !important; }
 code {
@@ -243,8 +223,10 @@ FEATURE_COLS = [
     'purpose_vacation', 'purpose_wedding',
 ]
 
-HOME_MAP    = {'RENT': 'home_ownership_RENT', 'OWN': 'home_ownership_OWN',
-               'MORTGAGE': 'home_ownership_MORTGAGE', 'ANY': None}
+HOME_MAP = {
+    'RENT': 'home_ownership_RENT', 'OWN': 'home_ownership_OWN',
+    'MORTGAGE': 'home_ownership_MORTGAGE', 'ANY': None
+}
 PURPOSE_MAP = {
     'Debt Consolidation': 'purpose_debt_consolidation',
     'Credit Card':        'purpose_credit_card',
@@ -272,15 +254,12 @@ def build_input_row(loan_amnt, term, int_rate, grade, emp_length,
     row['emp_length'] = emp_length
     row['annual_inc'] = annual_inc
     row['dti']        = dti
-
     home_col = HOME_MAP.get(home_ownership)
     if home_col and home_col in row:
         row[home_col] = 1
-
     purpose_col = PURPOSE_MAP.get(purpose)
     if purpose_col and purpose_col in row:
         row[purpose_col] = 1
-
     return pd.DataFrame([row])[FEATURE_COLS]
 
 
@@ -300,10 +279,7 @@ def rule_check(loan_amnt, annual_inc, dti):
     return True, ""
 
 
-def predict(input_df, prob_override=None):
-    if prob_override is not None:
-        return prob_override
-
+def predict(input_df):
     if not DEMO_MODE:
         try:
             xgb      = MODELS['xgb']
@@ -324,7 +300,6 @@ def predict(input_df, prob_override=None):
             st.error(f"Prediction error: {e}")
             st.code(traceback.format_exc())
 
-    # Demo / fallback formula
     row = input_df.iloc[0]
     p = (
         0.05
@@ -339,17 +314,123 @@ def predict(input_df, prob_override=None):
 
 def generate_explanation(row_dict, prob):
     reasons = []
-    if row_dict['dti'] > 30:       reasons.append(("⚠️", "High DTI",         f"Your DTI of {row_dict['dti']:.1f}% is above the 30% caution threshold"))
-    if row_dict['int_rate'] > 13:  reasons.append(("⚠️", "High Interest Rate", f"Rate of {row_dict['int_rate']:.1f}% signals elevated credit risk"))
-    if row_dict['term'] == 60:     reasons.append(("⚠️", "Long Term",          "60-month term increases default exposure"))
+    if row_dict['dti'] > 30:
+        reasons.append(("⚠️", "High DTI", f"Your DTI of {row_dict['dti']:.1f}% is above the 30% caution threshold"))
+    if row_dict['int_rate'] > 13:
+        reasons.append(("⚠️", "High Interest Rate", f"Rate of {row_dict['int_rate']:.1f}% signals elevated credit risk"))
+    if row_dict['term'] == 60:
+        reasons.append(("⚠️", "Long Term", "60-month term increases default exposure"))
     if row_dict['annual_inc'] < 50_000:
-        reasons.append(("⚠️", "Income",  f"Income of ${row_dict['annual_inc']:,.0f} is below the preferred $50k threshold"))
+        reasons.append(("⚠️", "Income", f"Income of ${row_dict['annual_inc']:,.0f} is below the preferred $50k threshold"))
     if row_dict['grade'] >= 5:
         reasons.append(("⚠️", "Loan Grade", f"Grade {list(GRADE_MAP)[row_dict['grade']-1]} indicates higher lender-assigned risk"))
-    if prob < 0.30:   reasons.append(("✅", "Low Default Risk",    "Predicted default probability is within acceptable range"))
-    elif prob < 0.60: reasons.append(("⚠️", "Moderate Risk",       "Default probability warrants careful review"))
-    else:             reasons.append(("❌", "High Default Risk",    "Default probability is above acceptable threshold"))
+    if prob < 0.30:
+        reasons.append(("✅", "Low Default Risk", "Predicted default probability is within acceptable range"))
+    elif prob < 0.60:
+        reasons.append(("⚠️", "Moderate Risk", "Default probability warrants careful review"))
+    else:
+        reasons.append(("❌", "High Default Risk", "Default probability is above acceptable threshold"))
     return reasons
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GEMINI AI RESPONSE  — gemini-1.5-flash-8b (1500 RPM free tier)
+# ─────────────────────────────────────────────────────────────────────────────
+GEMINI_API_URL = (
+    "https://generativelanguage.googleapis.com/v1beta"
+    "/models/gemini-1.5-flash-8b:generateContent"
+)
+
+def ai_response(messages, api_key):
+
+    # Personalised context from last Risk Assessment
+    app_context = ""
+    if "last_assessment" in st.session_state:
+        d = st.session_state["last_assessment"]
+        app_context = (
+            f"\n\nUSER'S MOST RECENT APPLICATION:\n"
+            f"- Loan Amount: ${d['loan_amnt']:,}\n"
+            f"- Annual Income: ${d['annual_inc']:,}\n"
+            f"- DTI: {d['dti']}%\n"
+            f"- Grade: {d['grade']}\n"
+            f"- Interest Rate: {d['int_rate']}%\n"
+            f"- Term: {d['term']} months\n"
+            f"- Purpose: {d['purpose']}\n"
+            f"- Home Ownership: {d['home_ownership']}\n"
+            f"- ML Default Probability: {d['prob']:.2%}\n"
+            f"- Risk Band: {d['band']}\n"
+            f"- Decision: {d['decision']}\n"
+            f"Use this data to give personalised advice when relevant."
+        )
+
+    system_prompt = (
+        "You are CreditIQ Assistant — a helpful AI for an intelligent loan credit risk "
+        "assessment system built for an MSc Data Science project.\n\n"
+        "You help users understand:\n"
+        "- Loan application results (approved / rejected / conditional approval)\n"
+        "- Credit risk concepts: DTI, interest rates, loan grades, default probability, risk bands\n"
+        "- How to improve their loan application\n"
+        "- How the ML models work: XGBoost (best, AUC 0.743), Random Forest (AUC 0.701), "
+        "Logistic Regression (AUC 0.734)\n"
+        "- The hybrid decision engine: rule-based pre-filter + ML scoring\n\n"
+        "System details:\n"
+        "- Dataset: LendingClub 2007-2018, 265,776 loans, 20.1% default rate\n"
+        "- Risk bands: Low (<30%), Medium (30-60%), High (>60%) default probability\n"
+        "- Policy rules: DTI>40% rejected, income<$30k rejected, loan>50% income rejected\n"
+        "- Models: XGBoost (primary), Random Forest, Logistic Regression\n\n"
+        "Keep responses concise, friendly, and practical. Use bullet points where helpful.\n"
+        "Do not provide specific financial or legal advice."
+        + app_context
+    )
+
+    # Convert history to Gemini format (must start with 'user' role)
+    gemini_messages = []
+    for msg in messages[-10:]:
+        role = "user" if msg["role"] == "user" else "model"
+        gemini_messages.append({"role": role, "parts": [{"text": msg["content"]}]})
+
+    # Gemini requires conversation to start with user turn
+    while gemini_messages and gemini_messages[0]["role"] == "model":
+        gemini_messages.pop(0)
+
+    if not gemini_messages:
+        return "Please ask a question!"
+
+    payload = {
+        "system_instruction": {"parts": [{"text": system_prompt}]},
+        "contents": gemini_messages,
+        "generationConfig": {"maxOutputTokens": 400, "temperature": 0.7},
+    }
+
+    # Retry up to 3 times with exponential back-off
+    for attempt in range(3):
+        try:
+            r = requests.post(
+                f"{GEMINI_API_URL}?key={api_key}",
+                json=payload,
+                timeout=15,
+            )
+            if r.status_code == 200:
+                return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+            elif r.status_code == 429:
+                wait = 10 * (attempt + 1)   # 10s → 20s → 30s
+                time.sleep(wait)
+                continue
+            elif r.status_code == 400:
+                return "❌ Bad request — please check your Gemini API key format (AIzaSy...)."
+            elif r.status_code == 403:
+                return "❌ API key not authorised. Make sure the Generative Language API is enabled in Google Cloud."
+            else:
+                return f"⚠️ API error {r.status_code}: {r.text[:200]}"
+        except requests.exceptions.Timeout:
+            if attempt < 2:
+                time.sleep(5)
+                continue
+            return "⏱️ Request timed out after 3 attempts. Please try again."
+        except Exception as e:
+            return f"⚠️ Connection error: {str(e)}"
+
+    return "⏳ Rate limit persists. Please wait ~1 minute and try again."
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -358,13 +439,9 @@ def generate_explanation(row_dict, prob):
 with st.sidebar:
     st.markdown("""
 <div style="padding:0.8rem 0 1rem 0">
-  <div style="font-size:1.3rem;font-weight:700;color:#e2e8f0;letter-spacing:-0.5px">
-    📊 CreditIQ
-  </div>
+  <div style="font-size:1.3rem;font-weight:700;color:#e2e8f0;letter-spacing:-0.5px">📊 CreditIQ</div>
   <div style="font-size:0.7rem;color:#64748b;font-family:'IBM Plex Mono',monospace;
-              letter-spacing:1px;text-transform:uppercase;margin-top:2px">
-    Loan Risk Platform
-  </div>
+              letter-spacing:1px;text-transform:uppercase;margin-top:2px">Loan Risk Platform</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -372,7 +449,8 @@ with st.sidebar:
 
     page = st.radio(
         "Navigation",
-        ["🏠 Home", "🔍 Risk Assessment", "📈 Analytics Dashboard", "🤖 Model Performance", "💬 AI Assistant", "ℹ️ About"],
+        ["🏠 Home", "🔍 Risk Assessment", "📈 Analytics Dashboard",
+         "🤖 Model Performance", "💬 AI Assistant", "ℹ️ About"],
         label_visibility="collapsed"
     )
 
@@ -388,16 +466,16 @@ with st.sidebar:
 # PAGE: HOME
 # ─────────────────────────────────────────────────────────────────────────────
 if page == "🏠 Home":
-    st.markdown('<h1 class="hero-title">Intelligent Credit Risk<br>& Decision System</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="page-title">Intelligent Credit Risk & Decision System</h1>', unsafe_allow_html=True)
     st.markdown('<p class="page-sub">Production ML pipeline · LendingClub 2007–2018 · MSc Data Science</p>', unsafe_allow_html=True)
 
     c1, c2, c3, c4, c5 = st.columns(5)
     for col, label, val, sub, cls in zip(
-        [c1,c2,c3,c4,c5],
-        ["Dataset","Best AUC","Default Rate","Models","Test Accuracy"],
-        ["265K","0.743","20.1%","3","81.2%"],
-        ["loans","XGBoost","in dataset","LR · RF · XGB","holdout set"],
-        ["metric-blue","metric-green","metric-amber","metric-purple","metric-blue"]
+        [c1, c2, c3, c4, c5],
+        ["Dataset", "Best AUC", "Default Rate", "Models", "Test Accuracy"],
+        ["265K", "0.743", "20.1%", "3", "81.2%"],
+        ["loans", "XGBoost", "in dataset", "LR · RF · XGB", "holdout set"],
+        ["metric-blue", "metric-green", "metric-amber", "metric-purple", "metric-blue"]
     ):
         with col:
             st.markdown(f"""<div class="metric-box">
@@ -412,19 +490,19 @@ if page == "🏠 Home":
     with col_l:
         st.markdown("""<div class="card card-accent">
 <p class="section-label">How It Works</p>
-<div class="step"><div class="step-num">1</div><div class="step-content">
+<div class="step"><div class="step-num">1</div><div>
   <div class="step-title">Pre-Eligibility Rules</div>
   <div class="step-desc">Hard policy checks — DTI cap, income floor, loan-to-income ratio</div>
 </div></div>
-<div class="step"><div class="step-num">2</div><div class="step-content">
+<div class="step"><div class="step-num">2</div><div>
   <div class="step-title">ML Risk Scoring</div>
   <div class="step-desc">XGBoost predicts probability of default from applicant features</div>
 </div></div>
-<div class="step"><div class="step-num">3</div><div class="step-content">
+<div class="step"><div class="step-num">3</div><div>
   <div class="step-title">Risk Band Assignment</div>
   <div class="step-desc">Low &lt;30% · Medium 30–60% · High &gt;60%</div>
 </div></div>
-<div class="step"><div class="step-num">4</div><div class="step-content">
+<div class="step"><div class="step-num">4</div><div>
   <div class="step-title">Explainable Decision</div>
   <div class="step-desc">Approved / Conditional / Rejected with plain-English reasoning</div>
 </div></div>
@@ -433,21 +511,17 @@ if page == "🏠 Home":
     with col_r:
         st.markdown("""<div class="card">
 <p class="section-label">Quick Start</p>
-<div class="step"><div class="step-num">1</div><div class="step-content">
-  <div class="step-title">Risk Assessment</div>
-  <div class="step-desc">Enter loan & financial details</div>
+<div class="step"><div class="step-num">1</div><div>
+  <div class="step-title">Risk Assessment</div><div class="step-desc">Enter loan & financial details</div>
 </div></div>
-<div class="step"><div class="step-num">2</div><div class="step-content">
-  <div class="step-title">Get Decision</div>
-  <div class="step-desc">View probability, risk band, outcome</div>
+<div class="step"><div class="step-num">2</div><div>
+  <div class="step-title">Get Decision</div><div class="step-desc">View probability, risk band, outcome</div>
 </div></div>
-<div class="step"><div class="step-num">3</div><div class="step-content">
-  <div class="step-title">Read Explanation</div>
-  <div class="step-desc">Understand what drove the decision</div>
+<div class="step"><div class="step-num">3</div><div>
+  <div class="step-title">Read Explanation</div><div class="step-desc">Understand what drove the decision</div>
 </div></div>
-<div class="step"><div class="step-num">4</div><div class="step-content">
-  <div class="step-title">Explore Analytics</div>
-  <div class="step-desc">Charts, model comparison, dataset stats</div>
+<div class="step"><div class="step-num">4</div><div>
+  <div class="step-title">Explore Analytics</div><div class="step-desc">Charts, model comparison, dataset stats</div>
 </div></div>
 </div>""", unsafe_allow_html=True)
 
@@ -455,9 +529,13 @@ if page == "🏠 Home":
 <p class="section-label">Tech Stack</p>
 <span class="tag">Python</span><span class="tag">XGBoost</span>
 <span class="tag">Scikit-Learn</span><span class="tag">Streamlit</span>
-<span class="tag">Pandas</span><span class="tag">Matplotlib</span>
+<span class="tag">Pandas</span><span class="tag">Gemini AI</span>
 </div>""", unsafe_allow_html=True)
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PAGE: RISK ASSESSMENT
+# ─────────────────────────────────────────────────────────────────────────────
 elif page == "🔍 Risk Assessment":
     st.markdown('<p class="page-title">Risk Assessment</p>', unsafe_allow_html=True)
     st.markdown('<p class="page-sub">Enter applicant details to generate a credit risk decision</p>', unsafe_allow_html=True)
@@ -475,12 +553,12 @@ elif page == "🔍 Risk Assessment":
         st.markdown('<p class="section-label" style="margin-top:1rem">Applicant Profile</p>', unsafe_allow_html=True)
         c4, c5, c6 = st.columns(3)
         with c4:
-            grade = st.selectbox("Loan Grade", ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
+            grade = st.selectbox("Loan Grade", ['A','B','C','D','E','F','G'],
                                  help="A = best credit quality, G = highest risk")
         with c5:
             emp_length = st.slider("Employment Length (years)", 0, 10, 5)
         with c6:
-            home_ownership = st.selectbox("Home Ownership", ['RENT', 'MORTGAGE', 'OWN', 'ANY'])
+            home_ownership = st.selectbox("Home Ownership", ['RENT','MORTGAGE','OWN','ANY'])
 
         c7, c8, c9 = st.columns(3)
         with c7:
@@ -500,10 +578,8 @@ elif page == "🔍 Risk Assessment":
 <div class="card" style="border-left:3px solid var(--red)">
 <span class="badge badge-rejected">❌ REJECTED — Policy Rule</span>
 <p style="margin-top:1rem;color:#94a3b8">{rule_reason}</p>
-<p style="color:#64748b;font-size:0.85rem">The application was rejected before ML scoring due to a hard policy violation.</p>
-</div>
-""", unsafe_allow_html=True)
-
+<p style="color:#64748b;font-size:0.85rem">Address the above before reapplying.</p>
+</div>""", unsafe_allow_html=True)
         else:
             input_df = build_input_row(loan_amnt, term, int_rate, grade, emp_length,
                                        annual_inc, dti, home_ownership, purpose)
@@ -517,20 +593,13 @@ elif page == "🔍 Risk Assessment":
             else:
                 decision, badge_class, icon = "Rejected — High ML Risk", "badge-rejected", "❌"
 
-            # ── Save to session state for AI Assistant context ──
-            st.session_state['last_assessment'] = {
-                'loan_amnt': loan_amnt,
-                'annual_inc': annual_inc,
-                'dti': dti,
-                'grade': grade,
-                'int_rate': int_rate,
-                'term': term,
-                'purpose': purpose,
-                'home_ownership': home_ownership,
-                'emp_length': emp_length,
-                'prob': prob,
-                'band': band,
-                'decision': decision,
+            # Save for AI Assistant context
+            st.session_state["last_assessment"] = {
+                "loan_amnt": loan_amnt, "annual_inc": annual_inc,
+                "dti": dti, "grade": grade, "int_rate": int_rate,
+                "term": term, "purpose": purpose,
+                "home_ownership": home_ownership, "emp_length": emp_length,
+                "prob": prob, "band": band, "decision": decision,
             }
 
             col_res, col_prob = st.columns([2, 1])
@@ -555,15 +624,16 @@ elif page == "🔍 Risk Assessment":
 </div>""", unsafe_allow_html=True)
 
             explanations = generate_explanation({
-                'dti': dti, 'int_rate': int_rate, 'term': term,
-                'annual_inc': annual_inc, 'grade': GRADE_MAP[grade]
+                "dti": dti, "int_rate": int_rate, "term": term,
+                "annual_inc": annual_inc, "grade": GRADE_MAP[grade]
             }, prob)
 
             st.markdown('<div class="card"><p class="section-label">Risk Factors & Explanation</p>', unsafe_allow_html=True)
             for emoji, title, detail in explanations:
                 icon_color = {"✅": "var(--green)", "⚠️": "var(--amber)", "❌": "var(--red)"}[emoji]
                 st.markdown(f"""
-<div style="display:flex;align-items:flex-start;gap:0.75rem;margin-bottom:0.75rem;padding:0.75rem;background:#0a0e1a;border-radius:8px">
+<div style="display:flex;align-items:flex-start;gap:0.75rem;margin-bottom:0.75rem;
+            padding:0.75rem;background:#0a0e1a;border-radius:8px">
   <span style="font-size:1.1rem">{emoji}</span>
   <div>
     <b style="color:{icon_color}">{title}</b>
@@ -575,11 +645,11 @@ elif page == "🔍 Risk Assessment":
             st.markdown('<p class="section-label" style="margin-top:1rem">Application Summary</p>', unsafe_allow_html=True)
             cols = st.columns(5)
             summary = [
-                ("Loan Amount",    f"${loan_amnt:,}",     "blue"),
-                ("Annual Income",  f"${annual_inc:,}",    "green"),
-                ("DTI Ratio",      f"{dti:.1f}%",         "amber" if dti > 30 else "green"),
-                ("Interest Rate",  f"{int_rate:.1f}%",    "amber" if int_rate > 13 else "green"),
-                ("Loan Grade",     grade,                  "red" if GRADE_MAP[grade] >= 5 else "green"),
+                ("Loan Amount",   f"${loan_amnt:,}",    "blue"),
+                ("Annual Income", f"${annual_inc:,}",   "green"),
+                ("DTI Ratio",     f"{dti:.1f}%",        "amber" if dti > 30 else "green"),
+                ("Interest Rate", f"{int_rate:.1f}%",   "amber" if int_rate > 13 else "green"),
+                ("Loan Grade",    grade,                 "red" if GRADE_MAP[grade] >= 5 else "green"),
             ]
             for col, (label, val, c) in zip(cols, summary):
                 with col:
@@ -589,7 +659,7 @@ elif page == "🔍 Risk Assessment":
 </div>""", unsafe_allow_html=True)
 
         if DEMO_MODE:
-            st.caption("🔧 Running in demo mode — probabilities are synthetic.")
+            st.caption("🔧 Demo mode — probabilities are synthetic.")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -600,28 +670,24 @@ elif page == "📈 Analytics Dashboard":
     st.markdown('<p class="page-sub">Insights from the LendingClub training dataset</p>', unsafe_allow_html=True)
 
     np.random.seed(42)
-    grades_dist   = {'A': 0.282, 'B': 0.291, 'C': 0.208, 'D': 0.116, 'E': 0.066, 'F': 0.027, 'G': 0.010}
-    default_grade = {'A': 0.06,  'B': 0.12,  'C': 0.20,  'D': 0.29,  'E': 0.38,  'F': 0.47,  'G': 0.52}
+    default_grade = {'A': 0.06, 'B': 0.12, 'C': 0.20, 'D': 0.29, 'E': 0.38, 'F': 0.47, 'G': 0.52}
     purposes      = ['Debt Consolidation','Credit Card','Home Improvement','Small Business','Major Purchase','Other']
     purpose_pct   = [0.587, 0.161, 0.073, 0.044, 0.034, 0.101]
     default_purp  = [0.19, 0.17, 0.16, 0.30, 0.16, 0.21]
 
     col_a, col_b = st.columns(2)
-
     with col_a:
         st.markdown('<div class="card"><p class="section-label">Default Rate by Loan Grade</p>', unsafe_allow_html=True)
         fig, ax = plt.subplots(figsize=(6, 3.5), facecolor='#111827')
         ax.set_facecolor('#0a0e1a')
         colors = ['#10b981','#34d399','#fbbf24','#f59e0b','#f87171','#ef4444','#b91c1c']
-        bars = ax.bar(default_grade.keys(), default_grade.values(), color=colors, edgecolor='none', width=0.6)
+        ax.bar(default_grade.keys(), default_grade.values(), color=colors, edgecolor='none', width=0.6)
         ax.set_ylabel("Default Rate", color='#64748b')
-        ax.set_xlabel("Grade", color='#64748b')
         ax.tick_params(colors='#64748b')
-        for spine in ax.spines.values(): spine.set_edgecolor('#1e293b')
+        for s in ax.spines.values(): s.set_edgecolor('#1e293b')
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.0%}'))
         ax.grid(axis='y', color='#1e293b', linewidth=0.5)
-        fig.tight_layout()
-        st.pyplot(fig)
+        fig.tight_layout(); st.pyplot(fig)
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col_b:
@@ -631,15 +697,13 @@ elif page == "📈 Analytics Dashboard":
         ax2.barh(purposes, purpose_pct, color='#3b82f6', edgecolor='none')
         ax2.set_xlabel("Proportion", color='#64748b')
         ax2.tick_params(colors='#64748b')
-        for spine in ax2.spines.values(): spine.set_edgecolor('#1e293b')
+        for s in ax2.spines.values(): s.set_edgecolor('#1e293b')
         ax2.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.0%}'))
         ax2.grid(axis='x', color='#1e293b', linewidth=0.5)
-        fig2.tight_layout()
-        st.pyplot(fig2)
+        fig2.tight_layout(); st.pyplot(fig2)
         st.markdown("</div>", unsafe_allow_html=True)
 
     col_c, col_d = st.columns(2)
-
     with col_c:
         st.markdown('<div class="card"><p class="section-label">Default Rate by Purpose</p>', unsafe_allow_html=True)
         fig3, ax3 = plt.subplots(figsize=(6, 3.5), facecolor='#111827')
@@ -648,40 +712,33 @@ elif page == "📈 Analytics Dashboard":
         ax3.barh(purposes, default_purp, color=bar_cols, edgecolor='none')
         ax3.set_xlabel("Default Rate", color='#64748b')
         ax3.tick_params(colors='#64748b')
-        for spine in ax3.spines.values(): spine.set_edgecolor('#1e293b')
+        for s in ax3.spines.values(): s.set_edgecolor('#1e293b')
         ax3.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.0%}'))
         ax3.grid(axis='x', color='#1e293b', linewidth=0.5)
-        fig3.tight_layout()
-        st.pyplot(fig3)
+        fig3.tight_layout(); st.pyplot(fig3)
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col_d:
         st.markdown('<div class="card"><p class="section-label">Risk Band Distribution</p>', unsafe_allow_html=True)
         fig4, ax4 = plt.subplots(figsize=(6, 3.5), facecolor='#111827')
         ax4.set_facecolor('#0a0e1a')
-        bands      = ['Low Risk', 'Medium Risk', 'High Risk']
-        band_pct   = [25.2, 51.8, 23.0]
-        band_color = ['#10b981', '#f59e0b', '#ef4444']
-        ax4.bar(bands, band_pct, color=band_color, edgecolor='none', width=0.5)
+        ax4.bar(['Low Risk','Medium Risk','High Risk'], [25.2, 51.8, 23.0],
+                color=['#10b981','#f59e0b','#ef4444'], edgecolor='none', width=0.5)
         ax4.set_ylabel("% of Test Set", color='#64748b')
         ax4.tick_params(colors='#64748b')
-        for spine in ax4.spines.values(): spine.set_edgecolor('#1e293b')
+        for s in ax4.spines.values(): s.set_edgecolor('#1e293b')
         ax4.grid(axis='y', color='#1e293b', linewidth=0.5)
-        fig4.tight_layout()
-        st.pyplot(fig4)
+        fig4.tight_layout(); st.pyplot(fig4)
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.divider()
     st.markdown('<p class="section-label">Dataset Statistics</p>', unsafe_allow_html=True)
     ks = st.columns(5)
-    kpis = [
-        ("Total Loans",       "265,776",  "blue"),
-        ("Fully Paid",        "212,275",  "green"),
-        ("Charged Off",       "53,501",   "red"),
-        ("Default Rate",      "20.1%",    "amber"),
-        ("Avg Loan Amount",   "$14,890",  "blue"),
-    ]
-    for col, (label, val, c) in zip(ks, kpis):
+    for col, (label, val, c) in zip(ks, [
+        ("Total Loans","265,776","blue"), ("Fully Paid","212,275","green"),
+        ("Charged Off","53,501","red"),   ("Default Rate","20.1%","amber"),
+        ("Avg Loan Amount","$14,890","blue"),
+    ]):
         with col:
             st.markdown(f"""<div class="metric-box">
 <div class="metric-label">{label}</div>
@@ -702,314 +759,101 @@ elif page == "🤖 Model Performance":
         "Random Forest":       {"roc_auc": 0.701, "precision": 0.484, "recall": 0.156, "accuracy": 0.806, "cv_mean": 0.698, "cv_std": 0.005},
     }
 
-    st.markdown('<p class="section-label">Summary Comparison</p>', unsafe_allow_html=True)
-    df_results = pd.DataFrame(model_results).T.reset_index().rename(columns={'index': 'Model'})
-    df_results.columns = ['Model', 'ROC-AUC', 'Precision', 'Recall', 'Accuracy', 'CV Mean AUC', 'CV Std']
-    df_results = df_results.round(3)
+    df_results = pd.DataFrame(model_results).T.reset_index().rename(columns={"index": "Model"})
+    df_results.columns = ["Model","ROC-AUC","Precision","Recall","Accuracy","CV Mean AUC","CV Std"]
     st.dataframe(
-        df_results.style
-            .highlight_max(subset=['ROC-AUC', 'Recall', 'CV Mean AUC'], color='rgba(59,130,246,0.2)')
-            .format({'ROC-AUC': '{:.3f}', 'Precision': '{:.3f}', 'Recall': '{:.3f}',
-                     'Accuracy': '{:.3f}', 'CV Mean AUC': '{:.3f}', 'CV Std': '{:.4f}'}),
-        use_container_width=True,
-        hide_index=True
+        df_results.round(3).style
+            .highlight_max(subset=["ROC-AUC","Recall","CV Mean AUC"], color="rgba(59,130,246,0.2)")
+            .format({"ROC-AUC":"{:.3f}","Precision":"{:.3f}","Recall":"{:.3f}",
+                     "Accuracy":"{:.3f}","CV Mean AUC":"{:.3f}","CV Std":"{:.4f}"}),
+        use_container_width=True, hide_index=True
     )
 
     col1, col2 = st.columns(2)
-
     with col1:
         st.markdown('<div class="card"><p class="section-label">ROC-AUC Comparison</p>', unsafe_allow_html=True)
         fig, ax = plt.subplots(figsize=(6, 3.5), facecolor='#111827')
         ax.set_facecolor('#0a0e1a')
         names = list(model_results.keys())
-        aucs  = [model_results[n]['roc_auc'] for n in names]
-        colors = ['#3b82f6', '#6366f1', '#10b981']
-        bars = ax.bar([n.replace(' ', '\n') for n in names], aucs, color=colors, edgecolor='none', width=0.5)
+        aucs  = [model_results[n]["roc_auc"] for n in names]
+        bars = ax.bar([n.replace(" ","\n") for n in names], aucs,
+                      color=["#3b82f6","#6366f1","#10b981"], edgecolor="none", width=0.5)
         for bar, val in zip(bars, aucs):
-            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.002,
-                    f'{val:.3f}', ha='center', color='#e2e8f0', fontsize=10, fontweight='bold')
-        ax.set_ylim(0.65, 0.78)
-        ax.set_ylabel("ROC-AUC", color='#64748b')
-        ax.tick_params(colors='#64748b')
-        for spine in ax.spines.values(): spine.set_edgecolor('#1e293b')
-        ax.grid(axis='y', color='#1e293b', linewidth=0.5)
-        ax.axhline(0.5, color='#ef4444', linewidth=1, linestyle='--', label='Random baseline')
-        fig.tight_layout()
-        st.pyplot(fig)
+            ax.text(bar.get_x()+bar.get_width()/2, bar.get_height()+0.002,
+                    f"{val:.3f}", ha="center", color="#e2e8f0", fontsize=10, fontweight="bold")
+        ax.set_ylim(0.65, 0.78); ax.set_ylabel("ROC-AUC", color="#64748b")
+        ax.tick_params(colors="#64748b")
+        for s in ax.spines.values(): s.set_edgecolor("#1e293b")
+        ax.grid(axis="y", color="#1e293b", linewidth=0.5)
+        ax.axhline(0.5, color="#ef4444", linewidth=1, linestyle="--")
+        fig.tight_layout(); st.pyplot(fig)
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col2:
-        st.markdown('<div class="card"><p class="section-label">Precision vs Recall Trade-off</p>', unsafe_allow_html=True)
-        fig2, ax2 = plt.subplots(figsize=(6, 3.5), facecolor='#111827')
-        ax2.set_facecolor('#0a0e1a')
-        for (name, res), color in zip(model_results.items(), ['#3b82f6', '#6366f1', '#10b981']):
-            ax2.scatter(res['recall'], res['precision'], color=color, s=120, zorder=5, label=name)
-            ax2.annotate(name.split()[0], (res['recall'], res['precision']),
-                         textcoords='offset points', xytext=(8, 4), color=color, fontsize=9)
-        ax2.set_xlabel("Recall (on defaulters)", color='#64748b')
-        ax2.set_ylabel("Precision", color='#64748b')
-        ax2.tick_params(colors='#64748b')
-        for spine in ax2.spines.values(): spine.set_edgecolor('#1e293b')
-        ax2.grid(color='#1e293b', linewidth=0.5)
-        ax2.set_xlim(0.1, 0.75)
-        ax2.set_ylim(0.3, 0.55)
-        fig2.tight_layout()
-        st.pyplot(fig2)
+        st.markdown('<div class="card"><p class="section-label">Precision vs Recall</p>', unsafe_allow_html=True)
+        fig2, ax2 = plt.subplots(figsize=(6, 3.5), facecolor="#111827")
+        ax2.set_facecolor("#0a0e1a")
+        for (name, res), color in zip(model_results.items(), ["#3b82f6","#6366f1","#10b981"]):
+            ax2.scatter(res["recall"], res["precision"], color=color, s=120, zorder=5)
+            ax2.annotate(name.split()[0], (res["recall"], res["precision"]),
+                         textcoords="offset points", xytext=(8,4), color=color, fontsize=9)
+        ax2.set_xlabel("Recall", color="#64748b"); ax2.set_ylabel("Precision", color="#64748b")
+        ax2.tick_params(colors="#64748b")
+        for s in ax2.spines.values(): s.set_edgecolor("#1e293b")
+        ax2.grid(color="#1e293b", linewidth=0.5)
+        ax2.set_xlim(0.1, 0.75); ax2.set_ylim(0.3, 0.55)
+        fig2.tight_layout(); st.pyplot(fig2)
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("""
 <div class="card card-accent">
 <p class="section-label">Model Selection Rationale</p>
-<p><b style="color:#3b82f6">XGBoost</b> is chosen as the production model — it achieves the highest ROC-AUC (0.743) and best cross-validation stability (±0.004).</p>
-<p><b style="color:#94a3b8">Logistic Regression</b> is retained as a fast, interpretable fallback.</p>
-<p style="color:#64748b;font-size:0.85rem">⚠️ <b>Note:</b> <code>int_rate</code> and <code>grade</code> may introduce data leakage in real-world deployments.</p>
-</div>
-""", unsafe_allow_html=True)
+<p><b style="color:#3b82f6">XGBoost</b> chosen as production model — highest ROC-AUC (0.743) and best CV stability (±0.004).</p>
+<p><b style="color:#94a3b8">Logistic Regression</b> retained as interpretable fallback for regulatory explainability.</p>
+<p style="color:#64748b;font-size:0.85rem">⚠️ <code>int_rate</code> and <code>grade</code> may cause data leakage in real pre-decision deployments.</p>
+</div>""", unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PAGE: AI ASSISTANT CHATBOT
+# PAGE: AI ASSISTANT  (Gemini 1.5 Flash 8B — 1500 RPM free tier)
 # ─────────────────────────────────────────────────────────────────────────────
 elif page == "💬 AI Assistant":
     st.markdown('<p class="page-title">AI Loan Assistant</p>', unsafe_allow_html=True)
     st.markdown('<p class="page-sub">Powered by Gemini 1.5 Flash · Ask anything about credit risk or your application</p>', unsafe_allow_html=True)
 
-    # ── Anthropic API endpoint ──
-    GEMINI_API_KEY = "AIzaSyDdTLPDJKrQWW9S20vXBYsF44kGMFYKoWk"
-
     # ── Knowledge Base ──
     KB = {
-        "dti": (
-            "📊 **Debt-to-Income Ratio (DTI)**\n\n"
-            "DTI = (Total Monthly Debt Payments ÷ Gross Monthly Income) × 100\n\n"
-            "**This system's thresholds:**\n"
-            "• DTI > 40% → Automatic rejection (policy rule)\n"
-            "• DTI > 30% → Flagged as elevated risk by ML model\n"
-            "• DTI < 20% → Considered healthy\n\n"
-            "**How to reduce DTI:** Pay down credit cards, car loans, or other debts before applying."
-        ),
-        "debt to income": (
-            "📊 **Debt-to-Income Ratio (DTI)**\n\n"
-            "DTI measures how much of your monthly income goes toward debt payments.\n\n"
-            "• DTI > 40% → Automatic policy rejection\n"
-            "• DTI 30–40% → High risk flag\n"
-            "• DTI < 20% → Healthy range\n\n"
-            "Tip: Reducing existing debt before applying improves your DTI."
-        ),
-        "interest rate": (
-            "💰 **Interest Rate**\n\n"
-            "Interest rate reflects the cost of borrowing and the lender's risk assessment.\n\n"
-            "• Rate > 13% → Flagged as elevated credit risk\n"
-            "• Grade A borrowers: ~6–8%\n"
-            "• Grade B: ~9–12%\n"
-            "• Grade C–G: 13–25%+\n\n"
-            "Higher grades = better credit profile = lower interest rate."
-        ),
-        "int rate": (
-            "💰 **Interest Rate**\n\nRates above 13% signal higher credit risk. "
-            "Grade A borrowers typically receive the lowest rates (6–8%)."
-        ),
-        "grade": (
-            "🏆 **Loan Grade**\n\n"
-            "Grades run A → G (A = best, G = worst):\n\n"
-            "• **A** — Lowest risk, best credit profile, lowest interest rate\n"
-            "• **B** — Good credit, slightly higher rate\n"
-            "• **C** — Moderate risk\n"
-            "• **D/E** — Higher risk, likely flagged by ML model\n"
-            "• **F/G** — Highest risk, very likely rejected\n\n"
-            "Grade is assigned based on credit score, income, employment history and other factors."
-        ),
-        "approved": (
-            "✅ **Approved**\n\n"
-            "Your application passed both stages:\n\n"
-            "1. **Rule check** — DTI ≤ 40%, income ≥ $30k, loan ≤ 50% of income\n"
-            "2. **ML score** — XGBoost predicted default probability < 30% (Low Risk)\n\n"
-            "Congratulations! You qualify for the loan under this system's criteria."
-        ),
-        "rejected": (
-            "❌ **Rejected**\n\n"
-            "Rejection happens for two reasons:\n\n"
-            "**Policy Rule Rejection:**\n"
-            "• DTI > 40%\n"
-            "• Annual income < $30,000\n"
-            "• Loan amount > 50% of annual income\n\n"
-            "**High ML Risk Rejection:**\n"
-            "• XGBoost predicted default probability > 60%\n\n"
-            "**How to improve:** Reduce DTI, increase income sources, or request a smaller loan amount."
-        ),
-        "conditional": (
-            "⚠️ **Conditional Approval**\n\n"
-            "Your application passed the rule checks but the ML model flagged **medium risk** "
-            "(default probability 30–60%).\n\n"
-            "In a real lending scenario, this means a human loan officer would manually review "
-            "your application before a final decision."
-        ),
-        "risk": (
-            "🎯 **Risk Bands**\n\n"
-            "• 🟢 **Low Risk** — Default probability < 30% → **Approved**\n"
-            "• 🟡 **Medium Risk** — 30–60% → **Conditional Approval**\n"
-            "• 🔴 **High Risk** — > 60% → **Rejected**\n\n"
-            "The probability is predicted by XGBoost trained on 265,000 LendingClub loans."
-        ),
-        "probability": (
-            "📉 **Default Probability**\n\n"
-            "This is the XGBoost model's estimate of the chance a borrower will not repay the loan.\n\n"
-            "**Key factors that increase probability:**\n"
-            "• High DTI\n• High interest rate\n• Longer term (60 months)\n"
-            "• Lower income\n• Worse loan grade (D–G)\n\n"
-            "• < 30% → Low Risk (Approved)\n"
-            "• 30–60% → Medium Risk (Conditional)\n"
-            "• > 60% → High Risk (Rejected)"
-        ),
-        "default": (
-            "⚠️ **Loan Default**\n\n"
-            "A loan defaults when the borrower stops making payments. In this dataset:\n\n"
-            "• **Charged Off** = defaulted (target = 1)\n"
-            "• **Fully Paid** = repaid successfully (target = 0)\n"
-            "• Overall default rate: **20.1%** in the LendingClub dataset\n\n"
-            "The ML model predicts the probability of each applicant defaulting."
-        ),
-        "xgboost": (
-            "🤖 **XGBoost Model**\n\n"
-            "XGBoost (Extreme Gradient Boosting) is the primary prediction model.\n\n"
-            "**Why XGBoost?**\n"
-            "• Best ROC-AUC: **0.743** on the test set\n"
-            "• Handles class imbalance well via scale_pos_weight\n"
-            "• Robust to outliers\n"
-            "• 200 decision trees trained sequentially\n\n"
-            "Each tree corrects the errors of the previous one."
-        ),
-        "random forest": (
-            "🌲 **Random Forest**\n\n"
-            "• ROC-AUC: **0.701** in this system\n"
-            "• Strong precision but lower recall on defaulters\n"
-            "• More conservative — tends to miss some defaulters\n\n"
-            "Slightly lower performance than XGBoost on this dataset."
-        ),
-        "logistic regression": (
-            "📈 **Logistic Regression**\n\n"
-            "• ROC-AUC: **0.734** in this system\n"
-            "• Fast to train and explain\n"
-            "• Used as a baseline and regulatory fallback\n\n"
-            "Top features by coefficient: interest rate, term, DTI."
-        ),
-        "roc": (
-            "📊 **ROC-AUC Score**\n\n"
-            "• **1.0** = perfect classifier\n"
-            "• **0.5** = random guessing\n"
-            "• **0.7+** = good for credit risk models\n\n"
-            "This system's best: **0.743** (XGBoost)"
-        ),
-        "auc": (
-            "📊 **ROC-AUC**\n\nBest score in this system: 0.743 (XGBoost). "
-            "Higher = better at distinguishing defaulters from non-defaulters."
-        ),
-        "loan amount": (
-            "💵 **Loan Amount**\n\n"
-            "The system rejects loans that exceed **50% of annual income**.\n\n"
-            "• Income $60,000 → Max loan $30,000\n"
-            "• Income $100,000 → Max loan $50,000"
-        ),
-        "term": (
-            "📅 **Loan Term**\n\n"
-            "• **36 months** — Lower total interest, lower default risk\n"
-            "• **60 months** — Lower monthly payment, slightly higher default risk\n\n"
-            "The ML model flags 60-month terms as slightly higher risk."
-        ),
-        "income": (
-            "💼 **Annual Income**\n\n"
-            "• Minimum threshold: **$30,000** (below = automatic rejection)\n"
-            "• Preferred threshold: **$50,000** (below = ML risk flag)\n\n"
-            "Include all income sources: salary, freelance, rental income, etc."
-        ),
-        "employment": (
-            "👔 **Employment Length**\n\n"
-            "• 0 years = less than 1 year employed\n"
-            "• 10 = 10 or more years\n\n"
-            "Longer employment history signals stability and reduces perceived risk."
-        ),
-        "purpose": (
-            "🎯 **Loan Purpose & Default Rates**\n\n"
-            "• **Small Business** — ~30% (highest risk)\n"
-            "• **Debt Consolidation** — ~19% (most common)\n"
-            "• **Credit Card** — ~17%\n"
-            "• **Home Improvement** — ~16%\n"
-            "• **Medical/Moving** — ~16–21%"
-        ),
-        "home ownership": (
-            "🏠 **Home Ownership**\n\n"
-            "• **MORTGAGE** — Most common, moderate risk\n"
-            "• **RENT** — Slightly higher risk\n"
-            "• **OWN** — Lower risk\n"
-            "• **ANY** — Grouped with other categories"
-        ),
-        "improve": (
-            "💡 **How to Improve Your Application**\n\n"
-            "1. **Reduce DTI** — Pay down existing debts before applying\n"
-            "2. **Increase income** — Include all income sources\n"
-            "3. **Request less** — A smaller loan amount reduces your risk score\n"
-            "4. **Choose 36 months** — Shorter term is preferred\n"
-            "5. **Build credit** — Better grade = lower interest rate = lower risk\n"
-            "6. **Avoid small business** — Debt consolidation has lower default rates"
-        ),
-        "how to": (
-            "💡 **How to Use This System**\n\n"
-            "1. Go to **Risk Assessment** in the sidebar\n"
-            "2. Fill in your loan details (amount, term, interest rate, grade)\n"
-            "3. Fill in your financial profile (income, DTI, employment, purpose)\n"
-            "4. Click **Analyse Application**\n"
-            "5. View your default probability, risk band, and final decision\n"
-            "6. Read the explanation to understand what drove the decision"
-        ),
-        "dataset": (
-            "📂 **Dataset**\n\n"
-            "Trained on **LendingClub Accepted Loans (2007–2018)** from Kaggle.\n\n"
-            "• 265,776 loans after filtering\n"
-            "• Default rate: **20.1%**\n"
-            "• Features: loan amount, term, interest rate, grade, income, DTI, purpose, home ownership"
-        ),
-        "lendingclub": (
-            "🏦 **LendingClub**\n\n"
-            "LendingClub is a US peer-to-peer lending platform. "
-            "Their historical loan data (2007–2018) is publicly available on Kaggle."
-        ),
-        "precision": (
-            "🎯 **Precision**\n\n"
-            "Of all loans predicted as defaults, how many actually defaulted.\n\n"
-            "• XGBoost: **0.398**\n"
-            "• Random Forest: **0.484** (most conservative)\n"
-            "• Logistic Regression: **0.350**"
-        ),
-        "recall": (
-            "📡 **Recall**\n\n"
-            "Of all actual defaults, how many did the model catch?\n\n"
-            "• XGBoost recall: **0.589**\n"
-            "• Logistic Regression: **0.640** (catches the most)\n"
-            "• Random Forest: **0.156** (misses many defaulters)"
-        ),
-        "feature": (
-            "🔧 **Features Used**\n\n"
-            "• Loan amount, term, interest rate\n"
-            "• Loan grade (A–G)\n"
-            "• Employment length\n"
-            "• Annual income\n"
-            "• Debt-to-income ratio (DTI)\n"
-            "• Home ownership (RENT/OWN/MORTGAGE)\n"
-            "• Loan purpose"
-        ),
-        "hello": "👋 Hi there! I'm your CreditIQ AI Assistant. Ask me anything about loans, credit risk, DTI, loan grades, or how this system works!",
-        "hi":    "👋 Hello! How can I help you today? Ask me about DTI, loan grades, approval decisions, or how to improve your application.",
-        "help": (
-            "🆘 **I can help you with:**\n\n"
-            "• **Loan concepts** — DTI, interest rates, loan grades, terms\n"
-            "• **Decisions** — Why approved / rejected / conditional\n"
-            "• **Improvement tips** — How to strengthen your application\n"
-            "• **ML models** — XGBoost, Random Forest, Logistic Regression\n"
-            "• **Statistics** — ROC-AUC, precision, recall explained\n\n"
-            "Just type your question below! 👇"
-        ),
+        "dti": "📊 **Debt-to-Income Ratio (DTI)**\n\nDTI = (Total Monthly Debt ÷ Gross Monthly Income) × 100\n\n• DTI > 40% → Automatic rejection\n• DTI > 30% → ML risk flag\n• DTI < 20% → Healthy\n\n**Tip:** Pay down credit cards or car loans before applying.",
+        "debt to income": "📊 **DTI** measures monthly debt vs income.\n\n• >40% → Rejected\n• 30–40% → High risk\n• <20% → Healthy\n\nReduce existing debt to improve your DTI.",
+        "interest rate": "💰 **Interest Rate**\n\n• >13% → Elevated risk flag\n• Grade A: ~6–8%\n• Grade B: ~9–12%\n• Grade C–G: 13–25%+\n\nBetter credit grade = lower rate.",
+        "grade": "🏆 **Loan Grade (A→G)**\n\n• A — Lowest risk, best rate\n• B/C — Moderate\n• D/E — Higher risk\n• F/G — Likely rejected\n\nGrade is assigned from credit score, income & history.",
+        "approved": "✅ **Approved** means:\n1. Passed rule check (DTI≤40%, income≥$30k, loan≤50% income)\n2. XGBoost default probability < 30% (Low Risk)",
+        "rejected": "❌ **Rejected** happens when:\n\n**Policy rule:** DTI>40%, income<$30k, or loan>50% income\n**ML risk:** Default probability >60%\n\n**Fix:** Reduce DTI, increase income, or request a smaller loan.",
+        "conditional": "⚠️ **Conditional Approval** — passed rules but ML flagged medium risk (30–60%). A loan officer would review manually.",
+        "risk": "🎯 **Risk Bands:**\n\n🟢 Low (<30%) → Approved\n🟡 Medium (30–60%) → Conditional\n🔴 High (>60%) → Rejected",
+        "probability": "📉 **Default Probability** — XGBoost's estimate of non-repayment.\n\nIncreased by: high DTI, high rate, 60-month term, lower income, worse grade.",
+        "default": "⚠️ **Default** = borrower stops payments.\n\n• Charged Off = defaulted\n• Fully Paid = repaid\n• Dataset default rate: **20.1%**",
+        "xgboost": "🤖 **XGBoost** — primary model.\n\n• ROC-AUC: **0.743**\n• 200 sequential decision trees\n• Best at ranking borrowers by default risk",
+        "random forest": "🌲 **Random Forest** — ROC-AUC: **0.701**\n\nHigh precision but misses many defaulters (low recall: 0.156).",
+        "logistic regression": "📈 **Logistic Regression** — ROC-AUC: **0.734**\n\nFast, interpretable, used as regulatory fallback.",
+        "roc": "📊 **ROC-AUC**: 1.0=perfect, 0.5=random.\n\nBest here: **0.743** (XGBoost). 0.7+ is good for credit risk.",
+        "auc": "📊 **AUC 0.743** (XGBoost) — best in this system.",
+        "precision": "🎯 **Precision** = of predicted defaults, how many actually defaulted.\n\n• XGBoost: 0.398\n• Random Forest: 0.484\n• Logistic Regression: 0.350",
+        "recall": "📡 **Recall** = of actual defaults, how many were caught.\n\n• XGBoost: 0.589\n• Logistic Regression: 0.640\n• Random Forest: 0.156",
+        "feature": "🔧 **Features:** loan amount, term, interest rate, grade, employment length, income, DTI, home ownership, loan purpose.",
+        "loan amount": "💵 **Max loan = 50% of annual income.**\n\n• $60k income → max $30k loan\n• $100k income → max $50k loan",
+        "term": "📅 **36 months** = lower risk\n**60 months** = slightly higher risk (ML flags it)",
+        "income": "💼 **Income thresholds:**\n• <$30k → Auto rejected\n• <$50k → ML risk flag\n\nInclude all sources: salary, freelance, rental.",
+        "employment": "👔 Longer employment = more stability = lower risk. Range: 0–10 years.",
+        "purpose": "🎯 **Default rates by purpose:**\n• Small Business ~30% (highest)\n• Debt Consolidation ~19%\n• Credit Card ~17%\n• Home Improvement ~16%",
+        "improve": "💡 **Improve your application:**\n1. Reduce DTI (pay down debts)\n2. Include all income sources\n3. Request a smaller loan\n4. Choose 36-month term\n5. Avoid small business purpose",
+        "how to": "💡 **How to use:**\n1. Go to Risk Assessment\n2. Enter loan + financial details\n3. Click Analyse\n4. Read decision + explanation\n5. Ask me to explain anything!",
+        "dataset": "📂 **LendingClub 2007–2018** — 265,776 loans, 20.1% default rate.",
+        "hello": "👋 Hi! I'm CreditIQ Assistant powered by **Gemini AI**. Ask me about DTI, loan grades, decisions, or how to improve your application!",
+        "hi":    "👋 Hello! Ask me anything about credit risk, your loan application, or how the ML models work.",
+        "help":  "🆘 **I can help with:**\n• DTI, interest rates, loan grades\n• Why approved/rejected/conditional\n• How to improve your application\n• XGBoost, ROC-AUC, precision & recall\n• Your specific application results\n\nType your question below! 👇",
     }
-    
+
     def rule_based_response(user_input):
         text = user_input.lower().strip()
         if text in KB:
@@ -1158,6 +1002,7 @@ Mode: <b style="color:{'#10b981' if st.session_state.api_key else '#f59e0b'}">
             st.session_state.chat_history.append({"role": "assistant", "content": response})
             st.rerun()
 
+
 # ─────────────────────────────────────────────────────────────────────────────
 # PAGE: ABOUT
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1167,32 +1012,31 @@ elif page == "ℹ️ About":
     st.markdown("""
 <div class="card card-accent">
 <h3>Project Overview</h3>
-<p>CreditIQ is a multi-model machine learning system designed to predict loan default risk
-and support pre-eligibility decisions. It integrates Logistic Regression,
-Random Forest, and XGBoost with model benchmarking, explainability, and interactive risk visualization.</p>
+<p>CreditIQ is a multi-model ML system for loan default risk prediction and pre-eligibility decisions,
+integrating Logistic Regression, Random Forest, and XGBoost with explainability and interactive risk visualization.</p>
 </div>
 <div class="card">
 <h3>Dataset</h3>
 <p><b>LendingClub Accepted Loans (2007–2018)</b> — 265,776 loans. Default rate: 20.1%.</p>
 <p><a href="https://www.kaggle.com/datasets/wordsforthewise/lending-club" target="_blank"
-style="color:#3b82f6;text-decoration:none">🔗 Kaggle Dataset</a></p>
+style="color:#3b82f6">🔗 Kaggle Dataset</a></p>
 </div>
 <div class="card">
 <h3>Decision Pipeline</h3>
 <ol>
-<li><b>Pre-Eligibility Rules</b> — Hard rejections for extreme DTI, low income, oversized loan</li>
-<li><b>ML Scoring</b> — XGBoost predicts probability of default</li>
-<li><b>Risk Banding</b> — Low (&lt;30%) / Medium (30–60%) / High (&gt;60%)</li>
+<li><b>Pre-Eligibility Rules</b> — DTI, income, loan-to-income checks</li>
+<li><b>ML Scoring</b> — XGBoost default probability</li>
+<li><b>Risk Banding</b> — Low / Medium / High</li>
 <li><b>Final Decision</b> — Approved / Conditional / Rejected</li>
-<li><b>Explanation</b> — Plain-English risk factors for every decision</li>
+<li><b>Explanation</b> — Plain-English risk factors</li>
 </ol>
 </div>
 <div class="card">
-<h3>Limitations and Future Work</h3>
+<h3>Limitations & Future Work</h3>
 <ul>
-<li><b>Feature leakage:</b> int_rate and grade should be excluded in real pre-decision models</li>
-<li><b>SHAP values:</b> Integration would provide more rigorous explainability</li>
-<li><b>MLOps:</b> Model retraining pipeline and data drift monitoring not yet implemented</li>
+<li>Feature leakage: int_rate and grade should be excluded in pre-decision models</li>
+<li>SHAP values for deeper explainability</li>
+<li>MLOps: retraining pipeline and drift monitoring</li>
 </ul>
 </div>
 """, unsafe_allow_html=True)
@@ -1222,7 +1066,8 @@ style="color:#3b82f6;text-decoration:none">🔗 Kaggle Dataset</a></p>
     st.markdown("""<div class="card">
 <p class="section-label">Developer</p>
 <p><b style="color:#e2e8f0">Shankar Gadyal</b> — MSc Data Science</p>
-<p><a href="https://www.linkedin.com/in/shankargadyal" target="_blank" style="color:#3b82f6">LinkedIn</a>
+<p>
+<a href="https://www.linkedin.com/in/shankargadyal" target="_blank" style="color:#3b82f6">LinkedIn</a>
 &nbsp;|&nbsp;
 <a href="https://github.com/shankargadyal" target="_blank" style="color:#3b82f6">GitHub</a>
 &nbsp;|&nbsp;
