@@ -771,323 +771,112 @@ elif page == "🤖 Model Performance":
 # PAGE: AI ASSISTANT CHATBOT
 # ─────────────────────────────────────────────────────────────────────────────
 elif page == "💬 AI Assistant":
-    st.markdown('<p class="page-title">AI Loan Assistant</p>', unsafe_allow_html=True)
-    st.markdown('<p class="page-sub">Ask me anything about your loan application, credit risk, or how the system works</p>', unsafe_allow_html=True)
+    st.markdown('<p class="page-title">AI Loan Assistant</p>',unsafe_allow_html=True)
+    st.markdown('<p class="page-sub">Ask me anything about your loan application, credit risk, or how the system works</p>',unsafe_allow_html=True)
 
-    # ── Anthropic API endpoint ──
-    ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
+    # ── Gemini API config ──
+    GEMINI_API_KEY = "AIzaSyDdTLPDJKrQWW9S20vXBYsF44kGMFYKoWk"
+    GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
-    # ── Knowledge Base ──
     KB = {
-        "dti": (
-            "📊 **Debt-to-Income Ratio (DTI)**\n\n"
-            "DTI = (Total Monthly Debt Payments ÷ Gross Monthly Income) × 100\n\n"
-            "**This system's thresholds:**\n"
-            "• DTI > 40% → Automatic rejection (policy rule)\n"
-            "• DTI > 30% → Flagged as elevated risk by ML model\n"
-            "• DTI < 20% → Considered healthy\n\n"
-            "**How to reduce DTI:** Pay down credit cards, car loans, or other debts before applying."
-        ),
-        "debt to income": (
-            "📊 **Debt-to-Income Ratio (DTI)**\n\n"
-            "DTI measures how much of your monthly income goes toward debt payments.\n\n"
-            "• DTI > 40% → Automatic policy rejection\n"
-            "• DTI 30–40% → High risk flag\n"
-            "• DTI < 20% → Healthy range\n\n"
-            "Tip: Reducing existing debt before applying improves your DTI."
-        ),
-        "interest rate": (
-            "💰 **Interest Rate**\n\n"
-            "Interest rate reflects the cost of borrowing and the lender's risk assessment.\n\n"
-            "• Rate > 13% → Flagged as elevated credit risk\n"
-            "• Grade A borrowers: ~6–8%\n"
-            "• Grade B: ~9–12%\n"
-            "• Grade C–G: 13–25%+\n\n"
-            "Higher grades = better credit profile = lower interest rate."
-        ),
-        "int rate": (
-            "💰 **Interest Rate**\n\nRates above 13% signal higher credit risk. "
-            "Grade A borrowers typically receive the lowest rates (6–8%)."
-        ),
-        "grade": (
-            "🏆 **Loan Grade**\n\n"
-            "Grades run A → G (A = best, G = worst):\n\n"
-            "• **A** — Lowest risk, best credit profile, lowest interest rate\n"
-            "• **B** — Good credit, slightly higher rate\n"
-            "• **C** — Moderate risk\n"
-            "• **D/E** — Higher risk, likely flagged by ML model\n"
-            "• **F/G** — Highest risk, very likely rejected\n\n"
-            "Grade is assigned based on credit score, income, employment history and other factors."
-        ),
-        "approved": (
-            "✅ **Approved**\n\n"
-            "Your application passed both stages:\n\n"
-            "1. **Rule check** — DTI ≤ 40%, income ≥ $30k, loan ≤ 50% of income\n"
-            "2. **ML score** — XGBoost predicted default probability < 30% (Low Risk)\n\n"
-            "Congratulations! You qualify for the loan under this system's criteria."
-        ),
-        "rejected": (
-            "❌ **Rejected**\n\n"
-            "Rejection happens for two reasons:\n\n"
-            "**Policy Rule Rejection:**\n"
-            "• DTI > 40%\n"
-            "• Annual income < $30,000\n"
-            "• Loan amount > 50% of annual income\n\n"
-            "**High ML Risk Rejection:**\n"
-            "• XGBoost predicted default probability > 60%\n\n"
-            "**How to improve:** Reduce DTI, increase income sources, or request a smaller loan amount."
-        ),
-        "conditional": (
-            "⚠️ **Conditional Approval**\n\n"
-            "Your application passed the rule checks but the ML model flagged **medium risk** "
-            "(default probability 30–60%).\n\n"
-            "In a real lending scenario, this means a human loan officer would manually review "
-            "your application before a final decision."
-        ),
-        "risk": (
-            "🎯 **Risk Bands**\n\n"
-            "• 🟢 **Low Risk** — Default probability < 30% → **Approved**\n"
-            "• 🟡 **Medium Risk** — 30–60% → **Conditional Approval**\n"
-            "• 🔴 **High Risk** — > 60% → **Rejected**\n\n"
-            "The probability is predicted by XGBoost trained on 265,000 LendingClub loans."
-        ),
-        "probability": (
-            "📉 **Default Probability**\n\n"
-            "This is the XGBoost model's estimate of the chance a borrower will not repay the loan.\n\n"
-            "**Key factors that increase probability:**\n"
-            "• High DTI\n• High interest rate\n• Longer term (60 months)\n"
-            "• Lower income\n• Worse loan grade (D–G)\n\n"
-            "• < 30% → Low Risk (Approved)\n"
-            "• 30–60% → Medium Risk (Conditional)\n"
-            "• > 60% → High Risk (Rejected)"
-        ),
-        "default": (
-            "⚠️ **Loan Default**\n\n"
-            "A loan defaults when the borrower stops making payments. In this dataset:\n\n"
-            "• **Charged Off** = defaulted (target = 1)\n"
-            "• **Fully Paid** = repaid successfully (target = 0)\n"
-            "• Overall default rate: **20.1%** in the LendingClub dataset\n\n"
-            "The ML model predicts the probability of each applicant defaulting."
-        ),
-        "xgboost": (
-            "🤖 **XGBoost Model**\n\n"
-            "XGBoost (Extreme Gradient Boosting) is the primary prediction model.\n\n"
-            "**Why XGBoost?**\n"
-            "• Best ROC-AUC: **0.743** on the test set\n"
-            "• Handles class imbalance well via scale_pos_weight\n"
-            "• Robust to outliers\n"
-            "• 200 decision trees trained sequentially\n\n"
-            "Each tree corrects the errors of the previous one."
-        ),
-        "random forest": (
-            "🌲 **Random Forest**\n\n"
-            "• ROC-AUC: **0.701** in this system\n"
-            "• Strong precision but lower recall on defaulters\n"
-            "• More conservative — tends to miss some defaulters\n\n"
-            "Slightly lower performance than XGBoost on this dataset."
-        ),
-        "logistic regression": (
-            "📈 **Logistic Regression**\n\n"
-            "• ROC-AUC: **0.734** in this system\n"
-            "• Fast to train and explain\n"
-            "• Used as a baseline and regulatory fallback\n\n"
-            "Top features by coefficient: interest rate, term, DTI."
-        ),
-        "roc": (
-            "📊 **ROC-AUC Score**\n\n"
-            "• **1.0** = perfect classifier\n"
-            "• **0.5** = random guessing\n"
-            "• **0.7+** = good for credit risk models\n\n"
-            "This system's best: **0.743** (XGBoost)"
-        ),
-        "auc": (
-            "📊 **ROC-AUC**\n\nBest score in this system: 0.743 (XGBoost). "
-            "Higher = better at distinguishing defaulters from non-defaulters."
-        ),
-        "loan amount": (
-            "💵 **Loan Amount**\n\n"
-            "The system rejects loans that exceed **50% of annual income**.\n\n"
-            "• Income $60,000 → Max loan $30,000\n"
-            "• Income $100,000 → Max loan $50,000"
-        ),
-        "term": (
-            "📅 **Loan Term**\n\n"
-            "• **36 months** — Lower total interest, lower default risk\n"
-            "• **60 months** — Lower monthly payment, slightly higher default risk\n\n"
-            "The ML model flags 60-month terms as slightly higher risk."
-        ),
-        "income": (
-            "💼 **Annual Income**\n\n"
-            "• Minimum threshold: **$30,000** (below = automatic rejection)\n"
-            "• Preferred threshold: **$50,000** (below = ML risk flag)\n\n"
-            "Include all income sources: salary, freelance, rental income, etc."
-        ),
-        "employment": (
-            "👔 **Employment Length**\n\n"
-            "• 0 years = less than 1 year employed\n"
-            "• 10 = 10 or more years\n\n"
-            "Longer employment history signals stability and reduces perceived risk."
-        ),
-        "purpose": (
-            "🎯 **Loan Purpose & Default Rates**\n\n"
-            "• **Small Business** — ~30% (highest risk)\n"
-            "• **Debt Consolidation** — ~19% (most common)\n"
-            "• **Credit Card** — ~17%\n"
-            "• **Home Improvement** — ~16%\n"
-            "• **Medical/Moving** — ~16–21%"
-        ),
-        "home ownership": (
-            "🏠 **Home Ownership**\n\n"
-            "• **MORTGAGE** — Most common, moderate risk\n"
-            "• **RENT** — Slightly higher risk\n"
-            "• **OWN** — Lower risk\n"
-            "• **ANY** — Grouped with other categories"
-        ),
-        "improve": (
-            "💡 **How to Improve Your Application**\n\n"
-            "1. **Reduce DTI** — Pay down existing debts before applying\n"
-            "2. **Increase income** — Include all income sources\n"
-            "3. **Request less** — A smaller loan amount reduces your risk score\n"
-            "4. **Choose 36 months** — Shorter term is preferred\n"
-            "5. **Build credit** — Better grade = lower interest rate = lower risk\n"
-            "6. **Avoid small business** — Debt consolidation has lower default rates"
-        ),
-        "how to": (
-            "💡 **How to Use This System**\n\n"
-            "1. Go to **Risk Assessment** in the sidebar\n"
-            "2. Fill in your loan details (amount, term, interest rate, grade)\n"
-            "3. Fill in your financial profile (income, DTI, employment, purpose)\n"
-            "4. Click **Analyse Application**\n"
-            "5. View your default probability, risk band, and final decision\n"
-            "6. Read the explanation to understand what drove the decision"
-        ),
-        "dataset": (
-            "📂 **Dataset**\n\n"
-            "Trained on **LendingClub Accepted Loans (2007–2018)** from Kaggle.\n\n"
-            "• 265,776 loans after filtering\n"
-            "• Default rate: **20.1%**\n"
-            "• Features: loan amount, term, interest rate, grade, income, DTI, purpose, home ownership"
-        ),
-        "lendingclub": (
-            "🏦 **LendingClub**\n\n"
-            "LendingClub is a US peer-to-peer lending platform. "
-            "Their historical loan data (2007–2018) is publicly available on Kaggle."
-        ),
-        "precision": (
-            "🎯 **Precision**\n\n"
-            "Of all loans predicted as defaults, how many actually defaulted.\n\n"
-            "• XGBoost: **0.398**\n"
-            "• Random Forest: **0.484** (most conservative)\n"
-            "• Logistic Regression: **0.350**"
-        ),
-        "recall": (
-            "📡 **Recall**\n\n"
-            "Of all actual defaults, how many did the model catch?\n\n"
-            "• XGBoost recall: **0.589**\n"
-            "• Logistic Regression: **0.640** (catches the most)\n"
-            "• Random Forest: **0.156** (misses many defaulters)"
-        ),
-        "feature": (
-            "🔧 **Features Used**\n\n"
-            "• Loan amount, term, interest rate\n"
-            "• Loan grade (A–G)\n"
-            "• Employment length\n"
-            "• Annual income\n"
-            "• Debt-to-income ratio (DTI)\n"
-            "• Home ownership (RENT/OWN/MORTGAGE)\n"
-            "• Loan purpose"
-        ),
-        "hello": "👋 Hi there! I'm your CreditIQ AI Assistant. Ask me anything about loans, credit risk, DTI, loan grades, or how this system works!",
-        "hi":    "👋 Hello! How can I help you today? Ask me about DTI, loan grades, approval decisions, or how to improve your application.",
-        "help": (
-            "🆘 **I can help you with:**\n\n"
-            "• **Loan concepts** — DTI, interest rates, loan grades, terms\n"
-            "• **Decisions** — Why approved / rejected / conditional\n"
-            "• **Improvement tips** — How to strengthen your application\n"
-            "• **ML models** — XGBoost, Random Forest, Logistic Regression\n"
-            "• **Statistics** — ROC-AUC, precision, recall explained\n\n"
-            "Just type your question below! 👇"
-        ),
+        "dti": "📊 **Debt-to-Income Ratio (DTI)**\n\nDTI = (Total Monthly Debt ÷ Gross Monthly Income) × 100\n\n• DTI > 40% → Automatic rejection\n• DTI > 30% → Elevated risk flag\n• DTI < 20% → Healthy\n\n**Tip:** Pay down credit cards or car loans before applying.",
+        "debt to income": "📊 **DTI** measures how much of your income goes to debt payments.\n\n• >40% → Auto rejected\n• 30–40% → High risk\n• <20% → Healthy",
+        "interest rate": "💰 **Interest Rate**\n\n• >13% → Elevated risk flag\n• Grade A: ~6–8%\n• Grade B: ~9–12%\n• Grade C–G: 13–25%+",
+        "grade": "🏆 **Loan Grade** (A = best, G = worst)\n\n• A/B → Low risk, approved likely\n• C → Moderate risk\n• D/E → High risk flag\n• F/G → Very likely rejected",
+        "approved": "✅ **Approved** — Passed rule check (DTI ≤ 40%, income ≥ $30k, loan ≤ 50% income) AND ML score < 30% default probability.",
+        "rejected": "❌ **Rejected** — Either failed a policy rule (DTI>40%, income<$30k, loan>50% income) OR XGBoost predicted >60% default probability.",
+        "conditional": "⚠️ **Conditional Approval** — Passed rules but ML flagged medium risk (30–60%). Needs manual review in real lending.",
+        "risk": "🎯 **Risk Bands**\n\n• 🟢 Low (<30%) → Approved\n• 🟡 Medium (30–60%) → Conditional\n• 🔴 High (>60%) → Rejected",
+        "probability": "📉 **Default Probability** — XGBoost's estimate of non-repayment chance.\n\nIncreased by: high DTI, high rate, 60-month term, low income, bad grade.",
+        "default": "⚠️ **Loan Default** — Borrower stops paying. Dataset: 20.1% default rate. Charged Off = defaulted, Fully Paid = repaid.",
+        "xgboost": "🤖 **XGBoost** — Best model. ROC-AUC: 0.743. 200 sequential trees, each correcting the previous one.",
+        "random forest": "🌲 **Random Forest** — ROC-AUC: 0.701. High precision but misses many defaulters (low recall: 0.156).",
+        "logistic regression": "📈 **Logistic Regression** — ROC-AUC: 0.734. Most interpretable, best recall (0.640). Used as regulatory fallback.",
+        "roc": "📊 **ROC-AUC**: 1.0 = perfect, 0.5 = random. Best here: 0.743 (XGBoost). 0.7+ is good for credit risk.",
+        "auc": "📊 **AUC 0.743** (XGBoost) — distinguishes defaulters from non-defaulters 74.3% of the time.",
+        "loan amount": "💵 System rejects loans > 50% of annual income.\n\n• $60k income → max $30k loan\n• $100k income → max $50k loan",
+        "term": "📅 **36 months** = lower total interest, lower risk.\n**60 months** = lower monthly payment, slightly higher default risk.",
+        "income": "💼 Minimum: **$30,000** (hard reject below). Preferred: **$50k+**. Include all income sources.",
+        "employment": "👔 Longer employment = more stability. Range: 0 (< 1 year) to 10 (10+ years).",
+        "purpose": "🎯 **Default rates by purpose:**\n• Small Business ~30% (highest)\n• Debt Consolidation ~19%\n• Credit Card ~17%\n• Home Improvement ~16%",
+        "home ownership": "🏠 OWN = lowest risk · MORTGAGE = moderate · RENT = slightly higher risk",
+        "improve": "💡 **Improve your application:**\n1. Reduce DTI — pay down debts\n2. Request a smaller loan\n3. Choose 36-month term\n4. Include all income sources\n5. Build credit history",
+        "how to": "💡 Go to **Risk Assessment** → fill in details → click Analyse → read your result and explanation.",
+        "dataset": "📂 **LendingClub 2007–2018** — 265,776 resolved loans, 20.1% default rate.",
+        "feature": "🔧 Features: loan amount, term, rate, grade, employment, income, DTI, home ownership, purpose.",
+        "precision": "🎯 Precision — of predicted defaults, how many were real:\n• RF: 0.484 · XGB: 0.398 · LR: 0.350",
+        "recall": "📡 Recall — of real defaults, how many caught:\n• LR: 0.640 · XGB: 0.589 · RF: 0.156",
+        "hello": "👋 Hi! I'm your CreditIQ AI Assistant. Ask me about DTI, loan grades, decisions, or how the ML models work!",
+        "hi":    "👋 Hello! Ask me about DTI, loan grades, approval decisions, or how to improve your application.",
+        "help":  "🆘 I can help with:\n• DTI, interest rates, loan grades\n• Approved/rejected/conditional explanations\n• Improvement tips\n• XGBoost, ROC-AUC, precision & recall\n\nJust type your question! 👇",
     }
 
     def rule_based_response(user_input):
         text = user_input.lower().strip()
-        if text in KB:
-            return KB[text]
+        if text in KB: return KB[text]
         for keyword, response in KB.items():
-            if keyword in text:
-                return response
+            if keyword in text: return response
         return None
 
-    # ── AI response via Anthropic API ──
-    def ai_response(messages, api_key):
+    # ── Gemini AI response ──
+    def ai_response(messages):
         import requests
 
-        # Build context from last assessment if available
         app_context = ""
         if 'last_assessment' in st.session_state:
             d = st.session_state['last_assessment']
             app_context = (
                 f"\n\nUSER'S MOST RECENT APPLICATION:\n"
-                f"- Loan Amount: ${d['loan_amnt']:,}\n"
-                f"- Annual Income: ${d['annual_inc']:,}\n"
-                f"- DTI: {d['dti']}%\n"
-                f"- Grade: {d['grade']}\n"
-                f"- Interest Rate: {d['int_rate']}%\n"
-                f"- Term: {d['term']} months\n"
-                f"- Purpose: {d['purpose']}\n"
-                f"- Home Ownership: {d['home_ownership']}\n"
-                f"- ML Default Probability: {d['prob']:.2%}\n"
-                f"- Risk Band: {d['band']}\n"
-                f"- Decision: {d['decision']}\n"
-                f"Use this data to give personalised advice when relevant."
+                f"- Loan: ${d['loan_amnt']:,} | Income: ${d['annual_inc']:,} | DTI: {d['dti']}%\n"
+                f"- Grade: {d['grade']} | Rate: {d['int_rate']}% | Term: {d['term']} months\n"
+                f"- Purpose: {d['purpose']} | Ownership: {d['home_ownership']}\n"
+                f"- ML Default Probability: {d['prob']:.2%} | Band: {d['band']} | Decision: {d['decision']}\n"
+                f"Use this to give personalised advice when relevant."
             )
 
         system_prompt = (
-            "You are CreditIQ Assistant — a helpful AI for an intelligent loan credit risk "
-            "assessment system built for an MSc Data Science project.\n\n"
-            "You help users understand:\n"
-            "- Loan application results (approved / rejected / conditional approval)\n"
-            "- Credit risk concepts: DTI, interest rates, loan grades, default probability, risk bands\n"
-            "- How to improve their loan application\n"
-            "- How the ML models work: XGBoost (best, AUC 0.743), Random Forest (AUC 0.701), "
-            "Logistic Regression (AUC 0.734)\n"
-            "- The hybrid decision engine: rule-based pre-filter + ML scoring\n"
-            "- General credit and personal finance questions\n\n"
-            "System details:\n"
-            "- Dataset: LendingClub 2007-2018, 265,776 loans, 20.1% default rate\n"
-            "- Risk bands: Low (<30%), Medium (30-60%), High (>60%) default probability\n"
-            "- Policy rules: DTI>40% rejected, income<$30k rejected, loan>50% income rejected\n"
-            "- Models: XGBoost (primary), Random Forest, Logistic Regression\n\n"
-            "Keep responses concise, friendly, and practical. Use bullet points where helpful.\n"
-            "Do not provide specific financial or legal advice — always recommend consulting "
-            "a financial advisor for major decisions."
+            "You are CreditIQ Assistant — a helpful AI embedded in an intelligent loan credit risk "
+            "assessment app (MSc Data Science project).\n\n"
+            "Help users understand: DTI, loan grades, interest rates, default probability, risk bands, "
+            "approval/rejection reasons, how to improve applications, and how XGBoost/RF/LR models work.\n\n"
+            "System: LendingClub 2007–2018 dataset, 265,776 loans, 20.1% default rate. "
+            "XGBoost (AUC 0.743), RF (0.701), LR (0.734). "
+            "Risk bands: Low <30%, Medium 30–60%, High >60%. "
+            "Rules: DTI>40% rejected, income<$30k rejected, loan>50% income rejected.\n\n"
+            "Be concise, friendly, practical. Use bullet points. "
+            "Do not give specific financial/legal advice."
             + app_context
         )
 
-        headers = {
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        }
+        # Convert to Gemini format
+        gemini_messages = []
+        for msg in messages[-10:]:
+            role = "user" if msg["role"] == "user" else "model"
+            gemini_messages.append({"role": role, "parts": [{"text": msg["content"]}]})
+
+        # Gemini requires conversation to start with a user turn
+        if gemini_messages and gemini_messages[0]["role"] == "model":
+            gemini_messages = gemini_messages[1:]
+
+        # If empty after trim, skip
+        if not gemini_messages:
+            return "Please ask me a question!"
+
         payload = {
-            "model": "claude-haiku-4-5-20251001",
-            "max_tokens": 400,
-            "system": system_prompt,
-            "messages": messages[-10:],   # last 10 messages for context window efficiency
+            "system_instruction": {"parts": [{"text": system_prompt}]},
+            "contents": gemini_messages,
+            "generationConfig": {"maxOutputTokens": 400, "temperature": 0.7},
         }
 
         try:
             r = requests.post(
-                ANTHROPIC_API_URL,          # ← single source of truth for the URL
-                headers=headers,
-                json=payload,
-                timeout=15,
+                f"{GEMINI_API_URL}?key={GEMINI_API_KEY}",
+                json=payload, timeout=15,
             )
             if r.status_code == 200:
-                return r.json()["content"][0]["text"]
-            elif r.status_code == 401:
-                return "❌ Invalid API key. Please check your Claude API key and try again."
+                return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+            elif r.status_code == 400:
+                return f"❌ Bad request: {r.json().get('error',{}).get('message','Unknown error')}"
             elif r.status_code == 429:
                 return "⏳ Rate limit reached. Please wait a moment and try again."
             else:
@@ -1099,90 +888,54 @@ elif page == "💬 AI Assistant":
 
     # ── Session state ──
     if "chat_history" not in st.session_state:
-        st.session_state.chat_history = [{
-            "role": "assistant",
-            "content": (
-                "👋 Hi! I'm your **CreditIQ AI Loan Assistant**.\n\n"
-                "I can help you with:\n"
-                "• 📊 Understanding DTI, interest rates, loan grades\n"
-                "• ✅ Why your application was approved / rejected\n"
-                "• 💡 How to improve your application\n"
-                "• 🤖 How XGBoost and the ML models work\n"
-                "• 💰 General credit & finance questions\n\n"
-                "What would you like to know?"
-            )
-        }]
-    if "api_key" not in st.session_state:
-        st.session_state.api_key = ""
+        st.session_state.chat_history = [{"role":"assistant","content":(
+            "👋 Hi! I'm your **CreditIQ AI Loan Assistant** — powered by Google Gemini.\n\n"
+            "I can help you with:\n"
+            "• 📊 Understanding DTI, interest rates, loan grades\n"
+            "• ✅ Why your application was approved / rejected\n"
+            "• 💡 How to improve your application\n"
+            "• 🤖 How XGBoost and the ML models work\n\n"
+            "What would you like to know?"
+        )}]
 
-    # ── Layout ──
     col_chat, col_side = st.columns([3, 1])
 
     with col_side:
-        st.markdown('<div class="card"><p class="section-label">💬 Quick Questions</p>', unsafe_allow_html=True)
-        quick_qs = [
-            "What is DTI?",
-            "Why was I rejected?",
-            "How to improve my application?",
-            "What is XGBoost?",
-            "Explain loan grades",
-            "What is default probability?",
-            "How does this system work?",
-            "What is ROC-AUC?",
-            "Explain precision and recall",
-            "What features does the model use?",
-        ]
+        st.markdown('<div class="card"><p class="section-label">💬 Quick Questions</p>',unsafe_allow_html=True)
+        quick_qs = ["What is DTI?","Why was I rejected?","How to improve my application?",
+                    "What is XGBoost?","Explain loan grades","What is default probability?",
+                    "How does this system work?","What is ROC-AUC?","Explain precision and recall","What features does the model use?"]
         for q in quick_qs:
             if st.button(q, key=f"qb_{q}", use_container_width=True):
-                st.session_state.chat_history.append({"role": "user", "content": q})
-                rule_resp = rule_based_response(q)
-                if rule_resp:
-                    st.session_state.chat_history.append({"role": "assistant", "content": rule_resp})
-                elif st.session_state.api_key:
-                    msgs = [{"role": m["role"], "content": m["content"]}
-                            for m in st.session_state.chat_history]
-                    ai_resp = ai_response(msgs, st.session_state.api_key)
-                    st.session_state.chat_history.append({"role": "assistant", "content": ai_resp})
-                else:
-                    st.session_state.chat_history.append({
-                        "role": "assistant",
-                        "content": "I don't have a specific answer for that. Enable AI mode with a Claude API key for detailed responses!"
-                    })
+                st.session_state.chat_history.append({"role":"user","content":q})
+                resp = rule_based_response(q)
+                if not resp:
+                    with st.spinner("Thinking..."):
+                        resp = ai_response(st.session_state.chat_history)
+                st.session_state.chat_history.append({"role":"assistant","content":resp})
                 st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>",unsafe_allow_html=True)
 
-        # AI mode panel
+        # AI status badge
         st.markdown("""<div class="card" style="margin-top:1rem">
 <p class="section-label">🤖 AI Mode</p>
-<p style="color:#64748b;font-size:0.78rem;margin-bottom:0.5rem">
-Add a Claude API key to enable full AI responses for any question beyond the knowledge base.
-Get a free key at <a href="https://console.anthropic.com" target="_blank" style="color:#3b82f6">console.anthropic.com</a>
-</p>""", unsafe_allow_html=True)
-        api_key_input = st.text_input(
-            "Claude API Key", type="password",
-            value=st.session_state.api_key,
-            placeholder="sk-ant-...",
-            label_visibility="collapsed"
-        )
-        if api_key_input:
-            st.session_state.api_key = api_key_input
-            st.success("AI mode active ✅", icon="🤖")
-        else:
-            st.info("Rule-based mode", icon="📚")
-        st.markdown("</div>", unsafe_allow_html=True)
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+  <div style="width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px #22c55e"></div>
+  <span style="color:#22c55e;font-size:0.8rem;font-weight:600">Gemini 2.0 Flash Active</span>
+</div>
+<p style="color:#64748b;font-size:0.75rem;margin:0">Powered by Google Gemini API. Ask any question for intelligent responses.</p>
+</div>""",unsafe_allow_html=True)
 
         if st.button("🗑️ Clear Chat", use_container_width=True):
-            st.session_state.chat_history = [{"role": "assistant", "content": "Chat cleared! How can I help you?"}]
+            st.session_state.chat_history = [{"role":"assistant","content":"Chat cleared! How can I help you?"}]
             st.rerun()
 
         st.markdown(f"""<div class="card" style="margin-top:1rem">
 <p class="section-label">Session Stats</p>
 <p style="color:#64748b;font-size:0.82rem">
 Messages: <b style="color:#e2e8f0">{len(st.session_state.chat_history)}</b><br>
-Mode: <b style="color:{'#10b981' if st.session_state.api_key else '#f59e0b'}">
-{'AI + Rules' if st.session_state.api_key else 'Rules Only'}</b>
-</p>
-</div>""", unsafe_allow_html=True)
+Mode: <b style="color:#22c55e">Gemini AI + Rules</b>
+</p></div>""",unsafe_allow_html=True)
 
     with col_chat:
         chat_box = st.container(height=520)
@@ -1194,40 +947,23 @@ Mode: <b style="color:{'#10b981' if st.session_state.api_key else '#f59e0b'}">
                 label      = "You" if is_user else "🤖 CreditIQ Assistant"
                 label_col  = "#3b82f6" if is_user else "#10b981"
                 border_col = "#2563eb" if is_user else "#1e293b"
-                st.markdown(f"""
-<div style="display:flex;justify-content:{align};margin-bottom:1rem">
-  <div style="max-width:82%;background:{bg};border:1px solid {border_col};
-              border-radius:14px;padding:1rem 1.2rem;box-shadow:0 2px 8px rgba(0,0,0,0.3)">
-    <p style="margin:0 0 6px 0;font-size:0.68rem;color:{label_col};
-              font-weight:700;text-transform:uppercase;letter-spacing:1.5px">{label}</p>
+                st.markdown(f"""<div style="display:flex;justify-content:{align};margin-bottom:1rem">
+  <div style="max-width:82%;background:{bg};border:1px solid {border_col};border-radius:14px;padding:1rem 1.2rem;box-shadow:0 2px 8px rgba(0,0,0,0.3)">
+    <p style="margin:0 0 6px 0;font-size:0.68rem;color:{label_col};font-weight:700;text-transform:uppercase;letter-spacing:1.5px">{label}</p>
     <p style="margin:0;color:#e2e8f0;font-size:0.88rem;line-height:1.6;white-space:pre-wrap">{msg["content"]}</p>
   </div>
-</div>""", unsafe_allow_html=True)
+</div>""",unsafe_allow_html=True)
 
         user_input = st.chat_input("Ask about DTI, loan grades, approval decisions, XGBoost...")
         if user_input:
-            st.session_state.chat_history.append({"role": "user", "content": user_input})
-
+            st.session_state.chat_history.append({"role":"user","content":user_input})
             response = rule_based_response(user_input)
-
-            if not response and st.session_state.api_key:
-                with st.spinner("Thinking..."):
-                    ai_msgs = [{"role": m["role"], "content": m["content"]}
-                               for m in st.session_state.chat_history]
-                    response = ai_response(ai_msgs, st.session_state.api_key)
-
             if not response:
-                response = (
-                    "I don't have a specific answer for that in my knowledge base.\n\n"
-                    "Try asking about:\n"
-                    "• **DTI**, **loan grades**, **interest rates**\n"
-                    "• **Why rejected / approved / conditional**\n"
-                    "• **XGBoost**, **ROC-AUC**, **precision & recall**\n"
-                    "• **How to improve my application**\n\n"
-                    "Or add a Claude API key in the panel on the right for AI-powered answers!"
-                )
-
-            st.session_state.chat_history.append({"role": "assistant", "content": response})
+                with st.spinner("Thinking..."):
+                    response = ai_response(st.session_state.chat_history)
+            if not response:
+                response = "Sorry, I couldn't get a response. Please try again!"
+            st.session_state.chat_history.append({"role":"assistant","content":response})
             st.rerun()
 
 
