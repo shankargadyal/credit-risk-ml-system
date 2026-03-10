@@ -1007,10 +1007,11 @@ elif page == "💬 AI Assistant":
             "• **ML models** — XGBoost, Random Forest, Logistic Regression\n"
             "• **Statistics** — ROC-AUC, precision, recall explained\n\n"
             "Just type your question below! 👇"
-        )
+        ),
     }
+    
 
-  def rule_based_response(user_input):
+    def rule_based_response(user_input):
         text = user_input.lower().strip()
         if text in KB:
             return KB[text]
