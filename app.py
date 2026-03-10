@@ -775,7 +775,7 @@ elif page == "💬 AI Assistant":
     st.markdown('<p class="page-sub">Powered by Gemini 1.5 Flash · Ask anything about credit risk or your application</p>', unsafe_allow_html=True)
 
     # ── Anthropic API endpoint ──
-   GEMINI_API_KEY = "AIzaSyDdTLPDJKrQWW9S20vXBYsF44kGMFYKoWk"
+    GEMINI_API_KEY = "AIzaSyDdTLPDJKrQWW9S20vXBYsF44kGMFYKoWk"
 
     # ── Knowledge Base ──
     KB = {
