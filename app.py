@@ -1010,7 +1010,7 @@ elif page == "💬 AI Assistant":
         ),
     }
 
-    def rule_based_response(user_input):
+  def rule_based_response(user_input):
         text = user_input.lower().strip()
         if text in KB:
             return KB[text]
@@ -1019,149 +1019,64 @@ elif page == "💬 AI Assistant":
                 return response
         return None
 
-    # ── AI response via Anthropic API ──
-    def ai_response(messages, api_key):
-        import requests
-
-        # Build context from last assessment if available
-        app_context = ""
-        if 'last_assessment' in st.session_state:
-            d = st.session_state['last_assessment']
-            app_context = (
-                f"\n\nUSER'S MOST RECENT APPLICATION:\n"
-                f"- Loan Amount: ${d['loan_amnt']:,}\n"
-                f"- Annual Income: ${d['annual_inc']:,}\n"
-                f"- DTI: {d['dti']}%\n"
-                f"- Grade: {d['grade']}\n"
-                f"- Interest Rate: {d['int_rate']}%\n"
-                f"- Term: {d['term']} months\n"
-                f"- Purpose: {d['purpose']}\n"
-                f"- Home Ownership: {d['home_ownership']}\n"
-                f"- ML Default Probability: {d['prob']:.2%}\n"
-                f"- Risk Band: {d['band']}\n"
-                f"- Decision: {d['decision']}\n"
-                f"Use this data to give personalised advice when relevant."
-            )
-
-        system_prompt = (
-            "You are CreditIQ Assistant — a helpful AI for an intelligent loan credit risk "
-            "assessment system built for an MSc Data Science project.\n\n"
-            "You help users understand:\n"
-            "- Loan application results (approved / rejected / conditional approval)\n"
-            "- Credit risk concepts: DTI, interest rates, loan grades, default probability, risk bands\n"
-            "- How to improve their loan application\n"
-            "- How the ML models work: XGBoost (best, AUC 0.743), Random Forest (AUC 0.701), "
-            "Logistic Regression (AUC 0.734)\n"
-            "- The hybrid decision engine: rule-based pre-filter + ML scoring\n"
-            "- General credit and personal finance questions\n\n"
-            "System details:\n"
-            "- Dataset: LendingClub 2007-2018, 265,776 loans, 20.1% default rate\n"
-            "- Risk bands: Low (<30%), Medium (30-60%), High (>60%) default probability\n"
-            "- Policy rules: DTI>40% rejected, income<$30k rejected, loan>50% income rejected\n"
-            "- Models: XGBoost (primary), Random Forest, Logistic Regression\n\n"
-            "Keep responses concise, friendly, and practical. Use bullet points where helpful.\n"
-            "Do not provide specific financial or legal advice — always recommend consulting "
-            "a financial advisor for major decisions."
-            + app_context
-        )
-
-        headers = {
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        }
-        payload = {
-            "model": "claude-haiku-4-5-20251001",
-            "max_tokens": 400,
-            "system": system_prompt,
-            "messages": messages[-10:],   # last 10 messages for context window efficiency
-        }
-
-        try:
-            r = requests.post(
-                ANTHROPIC_API_URL,          # ← single source of truth for the URL
-                headers=headers,
-                json=payload,
-                timeout=15,
-            )
-            if r.status_code == 200:
-                return r.json()["content"][0]["text"]
-            elif r.status_code == 401:
-                return "❌ Invalid API key. Please check your Claude API key and try again."
-            elif r.status_code == 429:
-                return "⏳ Rate limit reached. Please wait a moment and try again."
-            else:
-                return f"⚠️ API error {r.status_code}: {r.text[:200]}"
-        except requests.exceptions.Timeout:
-            return "⏱️ Request timed out. Please try again."
-        except Exception as e:
-            return f"⚠️ Connection error: {str(e)}"
-
     # ── Session state ──
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [{
             "role": "assistant",
             "content": (
-                "👋 Hi! I'm your **CreditIQ AI Loan Assistant**.\n\n"
+                "👋 Hi! I'm your **CreditIQ AI Assistant** powered by **Gemini 1.5 Flash**.\n\n"
                 "I can help you with:\n"
-                "• 📊 Understanding DTI, interest rates, loan grades\n"
+                "• 📊 DTI, interest rates, loan grades explained\n"
                 "• ✅ Why your application was approved / rejected\n"
                 "• 💡 How to improve your application\n"
                 "• 🤖 How XGBoost and the ML models work\n"
-                "• 💰 General credit & finance questions\n\n"
-                "What would you like to know?"
+                "• 🎯 Personalised advice based on your last assessment\n\n"
+                "Add your **Gemini API key** on the right to activate AI mode, "
+                "or click a quick question to get started!"
             )
         }]
     if "api_key" not in st.session_state:
         st.session_state.api_key = ""
 
-    # ── Layout ──
     col_chat, col_side = st.columns([3, 1])
 
     with col_side:
+        # Quick questions
         st.markdown('<div class="card"><p class="section-label">💬 Quick Questions</p>', unsafe_allow_html=True)
         quick_qs = [
-            "What is DTI?",
-            "Why was I rejected?",
-            "How to improve my application?",
-            "What is XGBoost?",
-            "Explain loan grades",
-            "What is default probability?",
-            "How does this system work?",
-            "What is ROC-AUC?",
-            "Explain precision and recall",
-            "What features does the model use?",
+            "What is DTI?", "Why was I rejected?",
+            "How to improve my application?", "What is XGBoost?",
+            "Explain loan grades", "What is default probability?",
+            "How does this system work?", "What is ROC-AUC?",
+            "Explain precision and recall", "What features does the model use?",
         ]
         for q in quick_qs:
             if st.button(q, key=f"qb_{q}", use_container_width=True):
                 st.session_state.chat_history.append({"role": "user", "content": q})
-                rule_resp = rule_based_response(q)
-                if rule_resp:
-                    st.session_state.chat_history.append({"role": "assistant", "content": rule_resp})
-                elif st.session_state.api_key:
+                resp = rule_based_response(q)
+                if not resp and st.session_state.api_key:
                     msgs = [{"role": m["role"], "content": m["content"]}
                             for m in st.session_state.chat_history]
-                    ai_resp = ai_response(msgs, st.session_state.api_key)
-                    st.session_state.chat_history.append({"role": "assistant", "content": ai_resp})
-                else:
-                    st.session_state.chat_history.append({
-                        "role": "assistant",
-                        "content": "I don't have a specific answer for that. Enable AI mode with a Claude API key for detailed responses!"
-                    })
+                    resp = ai_response(msgs, st.session_state.api_key)
+                if not resp:
+                    resp = "Add a Gemini API key on the right for AI-powered answers to this question!"
+                st.session_state.chat_history.append({"role": "assistant", "content": resp})
                 st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # AI mode panel
+        # API key panel
         st.markdown("""<div class="card" style="margin-top:1rem">
-<p class="section-label">🤖 AI Mode</p>
+<p class="section-label">🤖 Gemini AI Mode</p>
 <p style="color:#64748b;font-size:0.78rem;margin-bottom:0.5rem">
-Add a Claude API key to enable full AI responses for any question beyond the knowledge base.
-Get a free key at <a href="https://console.anthropic.com" target="_blank" style="color:#3b82f6">console.anthropic.com</a>
+Free key at <a href="https://aistudio.google.com" target="_blank" style="color:#3b82f6">aistudio.google.com</a><br>
+Model: <b style="color:#e2e8f0">gemini-1.5-flash-8b</b><br>
+<span style="color:#22c55e">✓ 1500 req/min free</span>
 </p>""", unsafe_allow_html=True)
+
         api_key_input = st.text_input(
-            "Claude API Key", type="password",
+            "Gemini API Key", type="password",
             value=st.session_state.api_key,
-            placeholder="sk-ant-...",
+            placeholder="AIzaSy...",
             label_visibility="collapsed"
         )
         if api_key_input:
@@ -1171,16 +1086,29 @@ Get a free key at <a href="https://console.anthropic.com" target="_blank" style=
             st.info("Rule-based mode", icon="📚")
         st.markdown("</div>", unsafe_allow_html=True)
 
+        # Last assessment context badge
+        if "last_assessment" in st.session_state:
+            d = st.session_state["last_assessment"]
+            st.markdown(f"""<div class="card card-accent" style="margin-top:0.5rem">
+<p class="section-label">📋 Last Assessment</p>
+<p style="color:#94a3b8;font-size:0.8rem">
+Loan: <b style="color:#e2e8f0">${d['loan_amnt']:,}</b><br>
+Probability: <b style="color:var(--{'green' if d['prob']<0.3 else 'amber' if d['prob']<0.6 else 'red'})">{d['prob']:.1%}</b><br>
+Decision: <b style="color:#e2e8f0">{d['decision']}</b>
+</p>
+<p style="color:#64748b;font-size:0.72rem;margin-top:4px">AI will use this for personalised advice</p>
+</div>""", unsafe_allow_html=True)
+
         if st.button("🗑️ Clear Chat", use_container_width=True):
             st.session_state.chat_history = [{"role": "assistant", "content": "Chat cleared! How can I help you?"}]
             st.rerun()
 
-        st.markdown(f"""<div class="card" style="margin-top:1rem">
-<p class="section-label">Session Stats</p>
+        st.markdown(f"""<div class="card" style="margin-top:0.5rem">
+<p class="section-label">Session</p>
 <p style="color:#64748b;font-size:0.82rem">
 Messages: <b style="color:#e2e8f0">{len(st.session_state.chat_history)}</b><br>
 Mode: <b style="color:{'#10b981' if st.session_state.api_key else '#f59e0b'}">
-{'AI + Rules' if st.session_state.api_key else 'Rules Only'}</b>
+{'Gemini AI' if st.session_state.api_key else 'Rules Only'}</b>
 </p>
 </div>""", unsafe_allow_html=True)
 
@@ -1200,14 +1128,14 @@ Mode: <b style="color:{'#10b981' if st.session_state.api_key else '#f59e0b'}">
               border-radius:14px;padding:1rem 1.2rem;box-shadow:0 2px 8px rgba(0,0,0,0.3)">
     <p style="margin:0 0 6px 0;font-size:0.68rem;color:{label_col};
               font-weight:700;text-transform:uppercase;letter-spacing:1.5px">{label}</p>
-    <p style="margin:0;color:#e2e8f0;font-size:0.88rem;line-height:1.6;white-space:pre-wrap">{msg["content"]}</p>
+    <p style="margin:0;color:#e2e8f0;font-size:0.88rem;line-height:1.6;
+              white-space:pre-wrap">{msg["content"]}</p>
   </div>
 </div>""", unsafe_allow_html=True)
 
-        user_input = st.chat_input("Ask about DTI, loan grades, approval decisions, XGBoost...")
+        user_input = st.chat_input("Ask about DTI, loan grades, your result, XGBoost...")
         if user_input:
             st.session_state.chat_history.append({"role": "user", "content": user_input})
-
             response = rule_based_response(user_input)
 
             if not response and st.session_state.api_key:
@@ -1224,12 +1152,11 @@ Mode: <b style="color:{'#10b981' if st.session_state.api_key else '#f59e0b'}">
                     "• **Why rejected / approved / conditional**\n"
                     "• **XGBoost**, **ROC-AUC**, **precision & recall**\n"
                     "• **How to improve my application**\n\n"
-                    "Or add a Claude API key in the panel on the right for AI-powered answers!"
+                    "Or add a **Gemini API key** on the right for AI answers to any question!"
                 )
 
             st.session_state.chat_history.append({"role": "assistant", "content": response})
             st.rerun()
-
 
 
 # ─────────────────────────────────────────────────────────────────────────────
